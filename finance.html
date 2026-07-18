@@ -9,6 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Finances</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 <script src="sync.js" defer></script>
 <script src="topbar.js" defer></script>
 <style>
@@ -1774,6 +1775,50 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 520px) {
   .rcpt-fields { grid-template-columns: 1fr; }
 }
+
+/* ===== Linked accounts — real balances via Plaid ===== */
+.plaid-card { margin-bottom: 14px; }
+.plaid-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.plaid-head-title { display: flex; align-items: center; gap: 8px; }
+.plaid-head-actions { display: flex; gap: 8px; align-items: center; }
+.plaid-head-actions .rcpt-btn { padding: 8px 10px; }
+.plaid-head-actions .rcpt-btn-apply { padding: 8px 14px; }
+.plaid-totals {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  margin-top: 10px; font-size: 12px; font-family: var(--font-mono);
+}
+.plaid-totals span:first-child { color: #6BE3A4; }
+.plaid-debt-total { color: #FF8A8A; }
+.plaid-list { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.plaid-inst {
+  background: rgba(255,255,255,0.025);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.plaid-inst-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 6px;
+}
+.plaid-inst-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.plaid-disconnect {
+  background: transparent; border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-tertiary); cursor: pointer; font-size: 11px;
+  padding: 4px 9px; border-radius: 6px; font-family: inherit;
+}
+.plaid-disconnect:hover { color: #FF8A8A; border-color: rgba(255,138,138,0.30); }
+.plaid-acct {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.plaid-acct:first-of-type { border-top: none; }
+.plaid-acct-icon { font-size: 15px; flex-shrink: 0; }
+.plaid-acct-info { flex: 1; min-width: 0; }
+.plaid-acct-name { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plaid-acct-meta { font-size: 10.5px; color: var(--text-tertiary); font-family: var(--font-mono); margin-top: 1px; }
+.plaid-acct-bal { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; font-family: var(--font-mono); white-space: nowrap; color: var(--text-primary); }
+.plaid-acct-bal.debt { color: #FF8A8A; }
+.plaid-error { font-size: 12px; color: #FF8A8A; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -1918,6 +1963,29 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           <button type="button" class="rcpt-btn rcpt-btn-apply" id="rcptApply">Apply</button>
         </div>
       </div>
+    </div>
+
+    <!-- Linked accounts — real balances, credit cards & debt via Plaid -->
+    <div class="card nw-subcard plaid-card" id="plaidCard">
+      <div class="plaid-head">
+        <div class="plaid-head-title">
+          <span class="rcpt-emoji">🔗</span>
+          <div>
+            <div class="rcpt-t">Linked accounts</div>
+            <div class="rcpt-s">Connect Wells Fargo and other banks for real balances, cards & debt</div>
+          </div>
+        </div>
+        <div class="plaid-head-actions">
+          <button type="button" class="rcpt-btn" id="plaidRefreshBtn" title="Refresh balances">↻</button>
+          <button type="button" class="rcpt-btn rcpt-btn-apply" id="plaidConnectBtn">+ Connect a bank</button>
+        </div>
+      </div>
+      <div class="plaid-totals" id="plaidTotalsRow">
+        <span id="plaidTotal"></span>
+        <span id="plaidDebtTotal" class="plaid-debt-total"></span>
+      </div>
+      <div class="plaid-list" id="plaidList"></div>
+      <div class="rcpt-hint" id="plaidEmpty">Loading linked accounts…</div>
     </div>
 
     <!-- Overview row: stock-style line chart on the left, donut allocation chart on the right -->
@@ -2254,6 +2322,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   };
 
   // ============================================================
+  // PLAID STATE — same TDZ hazard as ORD_FROM_META above: renderAllNetWorth
+  // (called immediately below) reads plaidLinkedTotalsCHF()/plaidInstitutions
+  // before the Plaid section further down the file has run, so both must be
+  // hoisted here.
+  // ============================================================
+  let plaidInstitutions = [];
+  let plaidLoaded = false;
+
+  // ============================================================
   // BOTTOM TABS — switch between Net Worth / Subs / Orders.
   // Active tab persisted in localStorage.
   // ============================================================
@@ -2425,11 +2502,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       sliceTotals[cat.key] = sub;
       if (sub > 0) breakdown.push(cat.key + ': ' + fmtMoney(sub));
     });
+    // Fold in real balances from linked banks (assets add, credit/loan debt subtracts).
+    const linked = (typeof plaidLinkedTotalsCHF === 'function') ? plaidLinkedTotalsCHF() : { assets: 0, debt: 0, net: 0 };
+    grand += linked.net;
+    if (linked.assets > 0) breakdown.push('linked: ' + fmtMoney(linked.net));
     if (netWorthTotal) netWorthTotal.textContent = fmtMoney(grand);
     if (netWorthBreakdown) netWorthBreakdown.textContent = breakdown.join('  •  ');
     logNetWorthSnapshot(grand);
     renderNetWorthChart();
-    renderAllocationDonut(sliceTotals, grand);
+    renderAllocationDonut(sliceTotals, grand, linked);
     renderActivity();
     if (typeof renderWishlist === 'function') renderWishlist();
     if (typeof renderOrders   === 'function') renderOrders();
@@ -2522,7 +2603,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       + ' A ' + rInner + ' ' + rInner + ' 0 ' + large + ' 0 ' + x2i.toFixed(2) + ' ' + y2i.toFixed(2)
       + ' Z';
   }
-  function renderAllocationDonut(catTotals, grand) {
+  function renderAllocationDonut(catTotals, grand, linked) {
     const svg    = document.getElementById('nwDonutSvg');
     const total  = document.getElementById('nwDonutTotal');
     const empty  = document.getElementById('nwDonutEmpty');
@@ -2556,6 +2637,20 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     if (annualSubsCHF > 0) {
       const meta = NW_SLICE_META.subs;
       slices.push({ key: 'subs', name: meta.name, color: meta.color, value: annualSubsCHF });
+    }
+
+    // Plaid-linked accounts — one slice per connected institution (assets
+    // only), plus one aggregate "Debt" slice for linked credit/loan balances.
+    if (linked && linked.assets > 0 && plaidInstitutions.length) {
+      plaidInstitutions.forEach(inst => {
+        const instAssets = (inst.accounts || []).reduce((s, a) => s + Math.max(0, plaidAccountCHF(a)), 0);
+        if (instAssets > 0) {
+          slices.push({ key: 'plaid::' + inst.item_id, name: inst.institution_name || 'Linked bank', color: '#38BDF8', value: instAssets });
+        }
+      });
+    }
+    if (linked && linked.debt > 0) {
+      slices.push({ key: 'debt', name: 'Debt', color: '#FF6B6B', value: linked.debt });
     }
 
     const sliceTotal = slices.reduce((s, x) => s + x.value, 0);
@@ -4090,6 +4185,164 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     discardBtn.addEventListener('click', reset);
   })();
 
+  // ============================================================
+  // PLAID — linked bank/credit accounts (real balances, credit cards, debt).
+  // access_tokens live only server-side (see api/plaid-*.js); the browser
+  // only ever sees balances, never a token.
+  // ============================================================
+  function plaidAccountCHF(acct) {
+    const ccy = (acct.currency || 'USD').toUpperCase();
+    const rate = exchangeRates[ccy] || exchangeRates.USD || 1;
+    const bal = Number(acct.current) || 0;
+    // Plaid reports credit/loan balances as a positive amount owed —
+    // treat that as a negative contribution to net worth.
+    const signed = (acct.type === 'credit' || acct.type === 'loan') ? -bal : bal;
+    return signed / rate;
+  }
+  function plaidLinkedTotalsCHF() {
+    let assets = 0, debt = 0;
+    plaidInstitutions.forEach(inst => {
+      (inst.accounts || []).forEach(a => {
+        const v = plaidAccountCHF(a);
+        if (v >= 0) assets += v; else debt += -v;
+      });
+    });
+    return { assets: assets, debt: debt, net: assets - debt };
+  }
+  function plaidTypeIcon(type, subtype) {
+    if (type === 'credit') return '💳';
+    if (type === 'loan') return '🏠';
+    if (type === 'investment') return '📈';
+    if (subtype === 'savings') return '💰';
+    return '🏦';
+  }
+  function renderPlaidCard() {
+    const listEl = document.getElementById('plaidList');
+    const emptyEl = document.getElementById('plaidEmpty');
+    const totalEl = document.getElementById('plaidTotal');
+    const debtEl = document.getElementById('plaidDebtTotal');
+    if (!listEl) return;
+    if (!plaidLoaded) {
+      listEl.innerHTML = '';
+      emptyEl.textContent = 'Loading linked accounts…';
+      emptyEl.classList.remove('hidden');
+      return;
+    }
+    if (!plaidInstitutions.length) {
+      listEl.innerHTML = '';
+      emptyEl.textContent = 'No banks linked yet — tap "Connect a bank" to pull in real balances.';
+      emptyEl.classList.remove('hidden');
+      totalEl.textContent = ''; debtEl.textContent = '';
+      return;
+    }
+    emptyEl.classList.add('hidden');
+    const { assets, debt } = plaidLinkedTotalsCHF();
+    totalEl.textContent = assets > 0 ? fmtMoney(assets) + ' in linked assets' : '';
+    debtEl.textContent = debt > 0 ? fmtMoney(debt) + ' in linked debt' : '';
+
+    listEl.innerHTML = plaidInstitutions.map(inst => {
+      if (inst.error) {
+        return '<div class="plaid-inst"><div class="plaid-inst-h"><span class="plaid-inst-name">' + escapeHtml(inst.institution_name || 'Bank') + '</span>'
+          + '<button class="plaid-disconnect" data-item="' + inst.item_id + '">Disconnect</button></div>'
+          + '<div class="plaid-error">⚠ ' + escapeHtml(inst.error) + '</div></div>';
+      }
+      const rows = (inst.accounts || []).map(a => {
+        const isDebt = a.type === 'credit' || a.type === 'loan';
+        const balCHF = plaidAccountCHF(a);
+        const balText = fmtMoney(Math.abs(balCHF));
+        const rate = exchangeRates[(a.currency || 'USD').toUpperCase()] || exchangeRates.USD || 1;
+        const extra = [];
+        if (a.apr != null) extra.push(Number(a.apr).toFixed(2) + '% APR');
+        if (a.minimumPayment != null) extra.push('min ' + fmtMoney((Number(a.minimumPayment) || 0) / rate));
+        if (a.nextDueDate) extra.push('due ' + a.nextDueDate);
+        return '<div class="plaid-acct">'
+          + '<span class="plaid-acct-icon">' + plaidTypeIcon(a.type, a.subtype) + '</span>'
+          + '<div class="plaid-acct-info"><div class="plaid-acct-name">' + escapeHtml(a.name || a.officialName || 'Account') + (a.mask ? ' ••' + escapeHtml(a.mask) : '') + '</div>'
+          + (extra.length ? '<div class="plaid-acct-meta">' + extra.join(' · ') + '</div>' : '') + '</div>'
+          + '<span class="plaid-acct-bal' + (isDebt ? ' debt' : '') + '">' + (isDebt ? '−' : '') + balText + '</span>'
+          + '</div>';
+      }).join('');
+      return '<div class="plaid-inst">'
+        + '<div class="plaid-inst-h"><span class="plaid-inst-name">' + escapeHtml(inst.institution_name || 'Bank') + '</span>'
+        + '<button class="plaid-disconnect" data-item="' + inst.item_id + '">Disconnect</button></div>'
+        + rows
+        + '</div>';
+    }).join('');
+
+    listEl.querySelectorAll('.plaid-disconnect').forEach(b => {
+      b.addEventListener('click', () => disconnectPlaidItem(b.dataset.item));
+    });
+  }
+  async function refreshPlaidAccounts() {
+    try {
+      const res = await fetch('/api/plaid-accounts');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data && data.error) || 'failed to load linked accounts');
+      plaidInstitutions = data.institutions || [];
+      plaidLoaded = true;
+      storeSet('plaid_balances_cache', plaidInstitutions); // safe to sync — balances only, no tokens
+      renderPlaidCard();
+      renderAllNetWorth();
+    } catch (e) {
+      plaidLoaded = true;
+      console.error('plaid refresh failed', e);
+      renderPlaidCard();
+    }
+  }
+  async function disconnectPlaidItem(itemId) {
+    if (!confirm('Disconnect this bank? You can always reconnect it later.')) return;
+    try {
+      await fetch('/api/plaid-remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ item_id: itemId }) });
+    } catch (e) {}
+    refreshPlaidAccounts();
+  }
+  (function initPlaidLink() {
+    const btn = document.getElementById('plaidConnectBtn');
+    const refreshBtn = document.getElementById('plaidRefreshBtn');
+    if (!btn) return;
+
+    // Paint any cached balances immediately (from a previous session / synced device)
+    const cached = storeGet('plaid_balances_cache');
+    if (Array.isArray(cached) && cached.length) { plaidInstitutions = cached; plaidLoaded = true; renderPlaidCard(); }
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      const originalLabel = btn.textContent;
+      btn.textContent = 'Connecting…';
+      try {
+        const res = await fetch('/api/plaid-link-token', { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data && data.error) || 'could not start Plaid Link');
+        if (typeof Plaid === 'undefined') throw new Error('Plaid script did not load');
+        const handler = Plaid.create({
+          token: data.link_token,
+          onSuccess: async (public_token, metadata) => {
+            try {
+              const ex = await fetch('/api/plaid-exchange', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ public_token: public_token, institution_name: metadata && metadata.institution && metadata.institution.name })
+              });
+              if (!ex.ok) { const d = await ex.json().catch(() => ({})); throw new Error(d.error || 'failed to save connection'); }
+            } catch (e) { alert('Connected, but failed to save: ' + e.message); }
+            refreshPlaidAccounts();
+          },
+          onExit: () => {},
+        });
+        handler.open();
+      } catch (e) {
+        alert(e.message || 'Could not open Plaid Link.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+      }
+    });
+
+    if (refreshBtn) refreshBtn.addEventListener('click', refreshPlaidAccounts);
+
+    refreshPlaidAccounts();
+  })();
+
 })();
 </script>
 
@@ -4128,7 +4381,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initCloudSync !== 'function') return;
   initCloudSync({
     appKey: 'finance',
-    syncedKeys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency', 'nw:activity', 'nw:history'],
+    syncedKeys: ['subs', 'wishlist', 'incoming_orders', 'nw_currency', 'nw:activity', 'nw:history', 'plaid_balances_cache'],
     syncedPrefixes: ['nw:'],
     onApplied: function () {
       window.dispatchEvent(new Event('storage'));
