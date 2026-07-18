@@ -595,6 +595,108 @@ body::after {
   .gm-card { padding: 16px; }
   .gm-progress-num { font-size: 36px; }
 }
+
+/* ===== Life Goals ===== */
+.lg-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.lg-tab {
+  flex: 1; padding: 9px 10px;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  background: transparent; color: var(--text-tertiary);
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  cursor: pointer; transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.lg-tab.on { background: rgba(255,255,255,0.10); color: var(--text-primary); border-color: rgba(255,255,255,0.18); }
+.lg-checklist-progress { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px; }
+.lg-check-list { list-style: none; margin: 0; padding: 0; }
+
+.lg-check-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 14px; margin-bottom: 6px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  transition: background 0.2s, opacity 0.3s;
+}
+.lg-check-row.lg-row-done { opacity: 0.45; background: rgba(107,227,164,0.04); }
+.lg-check-row.lg-row-done .lg-check-text { text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.4); }
+.lg-check-text { flex: 1; font-size: 14px; color: var(--text-primary); }
+
+.lg-check-cb {
+  appearance: none; -webkit-appearance: none;
+  width: 22px; height: 22px; flex-shrink: 0; margin: 0;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.28); border-radius: 7px;
+  position: relative; cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.25s;
+}
+.lg-check-cb:checked { background: #6BE3A4; border-color: #6BE3A4; box-shadow: 0 0 12px rgba(107,227,164,0.40); }
+.lg-check-cb:checked::after {
+  content: ''; position: absolute; left: 6px; top: 2px;
+  width: 6px; height: 11px; border: solid #0A0A0B;
+  border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+}
+
+.lg-counter-controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.lg-counter-btn {
+  width: 26px; height: 26px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04);
+  color: var(--text-primary); font-family: inherit; font-size: 15px; font-weight: 700;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.lg-counter-btn:hover { background: rgba(255,255,255,0.10); }
+.lg-counter-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.lg-counter-val { font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--text-primary); min-width: 46px; text-align: center; }
+
+.lg-cat { margin-bottom: 16px; }
+.lg-cat:last-child { margin-bottom: 0; }
+.lg-cat-title {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 8px;
+}
+.lg-goal-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; margin-bottom: 6px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+}
+.lg-goal-row.lg-goal-done { background: rgba(107,227,164,0.06); border-color: rgba(107,227,164,0.18); }
+.lg-goal-main { flex: 1; min-width: 140px; }
+.lg-goal-label { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.lg-goal-done .lg-goal-label { color: var(--success); }
+.lg-goal-sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); margin-top: 3px; }
+.lg-progress-track { height: 5px; border-radius: 3px; background: rgba(255,255,255,0.06); margin-top: 7px; overflow: hidden; }
+.lg-progress-fill { height: 100%; background: #6BE3A4; border-radius: 3px; transition: width 0.4s; }
+.lg-goal-input-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.lg-goal-input {
+  width: 68px; padding: 7px 8px;
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 8px;
+  background: rgba(0,0,0,0.28); color: var(--text-primary);
+  font-family: inherit; font-size: 13px; text-align: right; outline: none;
+  transition: border-color 0.2s;
+}
+.lg-goal-input:focus { border-color: rgba(255,255,255,0.28); }
+.lg-goal-unit { font-size: 11px; color: var(--text-tertiary); }
+.lg-milestone-cb {
+  width: 22px; height: 22px; flex-shrink: 0;
+  appearance: none; -webkit-appearance: none;
+  border: 1.5px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.28); border-radius: 50%;
+  cursor: pointer; position: relative;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.25s;
+}
+.lg-milestone-cb:checked { background: #6BE3A4; border-color: #6BE3A4; box-shadow: 0 0 12px rgba(107,227,164,0.40); }
+.lg-milestone-cb:checked::after {
+  content: ''; position: absolute; left: 6px; top: 2px;
+  width: 6px; height: 11px; border: solid #0A0A0B;
+  border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+}
+@media (max-width: 480px) {
+  .lg-goal-row { padding: 12px; }
+  .lg-goal-input-wrap { margin-left: 0; }
+}
 </style>
 </head>
 <body>
@@ -691,6 +793,22 @@ body::after {
         <div class="gm-status" id="tomorrowStatus"></div>
       </div>
     </div>
+  </div>
+
+  <div class="section" id="lifeGoalsSection">
+    <div class="section-title">Life Goals — 2026</div>
+
+    <div class="gm-card lg-checklist-card">
+      <div class="lg-tabs" id="lgTabs">
+        <button type="button" class="lg-tab on" data-period="daily">Daily</button>
+        <button type="button" class="lg-tab" data-period="weekly">Weekly</button>
+        <button type="button" class="lg-tab" data-period="monthly">Monthly</button>
+      </div>
+      <div class="lg-checklist-progress" id="lgChecklistProgress">0 / 0</div>
+      <ul class="lg-check-list" id="lgCheckList"></ul>
+    </div>
+
+    <div id="lgGoalCategories"></div>
   </div>
 
 </div>
@@ -1295,6 +1413,358 @@ body::after {
     loadTomorrow
   );
 
+  // ---------- Life Goals ----------
+  const LG_GOALS_KEY  = 'lifegoals_v1';
+  const LG_META_KEY   = 'lifegoals_period_meta_v1';
+  const LG_TEMPLATE_VERSION = 1;
+
+  const DEFAULT_LIFE_GOALS = [
+    // Fitness
+    { id: 'weight',      category: 'Fitness',   label: 'Bodyweight',                          unit: 'lbs',        target: 180,   kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'bodyfat',     category: 'Fitness',   label: 'Body Fat %',                           unit: '%',          target: 10,    kind: 'metric',  lowerIsBetter: true,  current: null },
+    { id: 'bench',       category: 'Fitness',   label: 'Bench Press',                          unit: 'lbs',        target: 315,   kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'squat',       category: 'Fitness',   label: 'Squat',                                 unit: 'lbs',        target: 405,   kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'muscleups',   category: 'Fitness',   label: 'Muscle-Ups (unbroken)',                 unit: 'reps',       target: 20,    kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'mile',        category: 'Fitness',   label: 'Mile Time',                             unit: 'min',        target: 8,     kind: 'metric',  lowerIsBetter: true,  current: null },
+    { id: 'hyrox',       category: 'Fitness',   label: 'Hyrox Race',                            kind: 'milestone', done: false },
+    { id: 'cpt',         category: 'Fitness',   label: 'Get CPT Certification',                 kind: 'milestone', done: true },
+    { id: 'spartan',     category: 'Fitness',   label: 'Spartan Race',                          kind: 'milestone', done: true },
+
+    // Career (Evotix)
+    { id: 'bdrlead',     category: 'Career',    label: 'BDR Team Lead',                         kind: 'milestone', done: false },
+    { id: 'opp10',       category: 'Career',    label: 'Opportunities / Month (Evotix)',        unit: 'opps',       target: 10,    kind: 'counter', current: 0, resetsMonthly: true },
+    { id: 'opp50',       category: 'Career',    label: 'Opportunities by EOY (Evotix)',         unit: 'opps',       target: 50,    kind: 'counter', current: 0 },
+    { id: 'clienttouch', category: 'Career',    label: 'Client 1-on-1 Touches / Week',          unit: 'clients',    target: 5,     kind: 'counter', current: 0, resetsWeekly: true },
+    { id: 'ptsocials',   category: 'Career',    label: 'Launch Fitness + Self-Improvement IG',  kind: 'milestone', done: false },
+    { id: 'ascend',      category: 'Career',    label: 'Ascend Plan',                           kind: 'milestone', done: false },
+
+    // Financial
+    { id: 'creditscore', category: 'Financial', label: 'Credit Score',                          unit: 'pts',        target: 700,   kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'ccdebt',      category: 'Financial', label: 'Credit Card Debt Paid Off',             kind: 'milestone', done: false },
+    { id: 'familydebt',  category: 'Financial', label: 'All Family Debt Paid',                  kind: 'milestone', done: false },
+    { id: 'savings',     category: 'Financial', label: 'Savings',                                unit: '$',          target: 10000, kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'roth',        category: 'Financial', label: 'Roth IRA',                               unit: '$',          target: 5000,  kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'invest',      category: 'Financial', label: 'Investment Account',                     unit: '$',          target: 5000,  kind: 'metric',  lowerIsBetter: false, current: null },
+    { id: 'quitvaping',  category: 'Financial', label: 'Quit Vaping',                            kind: 'milestone', done: false },
+
+    // Personal
+    { id: 'teeth',        category: 'Personal', label: 'Fix Teeth',                             kind: 'milestone', done: false },
+    { id: 'guitarart',    category: 'Personal', label: 'Guitar / Art Practice',                  unit: 'sessions/wk', target: 2,   kind: 'counter', current: 0, resetsWeekly: true },
+    { id: 'trips',        category: 'Personal', label: 'Fun Trips (Cali, Italy, ?)',             unit: 'trips',      target: 3,    kind: 'counter', current: 0 },
+    { id: 'apartment',    category: 'Personal', label: 'Own Apartment — ready to travel by Dec', kind: 'milestone', done: false },
+    { id: 'books',        category: 'Personal', label: 'Books Read',                             unit: 'books',      target: 30,   kind: 'counter', current: 0 },
+    { id: 'incomestreams',category: 'Personal', label: 'Additional Income Streams',              unit: 'streams',    target: 2,    kind: 'counter', current: 0 },
+    { id: 'bside',        category: 'Personal', label: 'Personal IG / Modeling & Acting',        kind: 'milestone', done: false }
+  ];
+
+  const LG_CATEGORY_ORDER = ['Fitness', 'Career', 'Financial', 'Personal'];
+
+  const LG_DAILY_TEMPLATE = [
+    { id: 'macros', text: 'Hit macros',        link: ['weight', 'bodyfat'] },
+    { id: 'gym',    text: 'Go to the gym',     link: ['bench', 'squat', 'muscleups', 'mile'] },
+    { id: 'novape', text: 'Vape-free day',     link: ['quitvaping'] }
+  ];
+  const LG_WEEKLY_TEMPLATE = [
+    { id: 'clienttouch', text: 'Touch a client 1-on-1',              counter: 'clienttouch' },
+    { id: 'fitnessig',   text: 'Post to Fitness IG',                 link: ['ptsocials'] },
+    { id: 'selfimpig',   text: 'Post to Self-Improvement IG',        link: ['ptsocials'] },
+    { id: 'personalig',  text: 'Post to personal IG',                link: ['bside'] },
+    { id: 'guitarart',   text: 'Guitar / art practice',              counter: 'guitarart' },
+    { id: 'reading',     text: 'Reading session',                    link: ['books'] }
+  ];
+  const LG_MONTHLY_TEMPLATE = [
+    { id: 'opplog',        text: 'Log opportunities worked this month', counter: 'opp10', alsoCounter: 'opp50' },
+    { id: 'creditcheck',   text: 'Check credit score',                  link: ['creditscore'] },
+    { id: 'ccpayment',     text: 'Make a credit card debt payment',     link: ['ccdebt'] },
+    { id: 'familydebtpay', text: 'Family debt payment update',          link: ['familydebt'] },
+    { id: 'savingslog',    text: 'Log savings balance',                 link: ['savings'] },
+    { id: 'investlog',     text: 'Log Roth / investment contribution',  link: ['roth', 'invest'] },
+    { id: 'booklog',       text: 'Log books finished this month',       counter: 'books' },
+    { id: 'bdrreview',     text: 'BDR Lead progress review',            link: ['bdrlead'] },
+    { id: 'ascendreview',  text: 'Ascend plan check-in',                link: ['ascend'] }
+  ];
+  const LG_TEMPLATES = { daily: LG_DAILY_TEMPLATE, weekly: LG_WEEKLY_TEMPLATE, monthly: LG_MONTHLY_TEMPLATE };
+
+  function lgGetActiveDateObj() {
+    const now = new Date();
+    if (now.getHours() < 6) { const d = new Date(now); d.setDate(d.getDate() - 1); return d; }
+    return now;
+  }
+  function lgWeekStartKey(d) {
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diff);
+    return dateToKey(monday);
+  }
+  function lgMonthKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
+
+  function lgPeriodKey(period) {
+    const d = lgGetActiveDateObj();
+    if (period === 'daily')   return 'lgdaily:'   + dateToKey(d);
+    if (period === 'weekly')  return 'lgweekly:'  + lgWeekStartKey(d);
+    return 'lgmonthly:' + lgMonthKey(d);
+  }
+
+  function loadLifeGoals() {
+    let g = storeGet(LG_GOALS_KEY);
+    if (!Array.isArray(g)) {
+      g = DEFAULT_LIFE_GOALS.map(x => Object.assign({}, x));
+    } else {
+      // add any new default goals that aren't in saved state yet
+      const ids = new Set(g.map(x => x.id));
+      DEFAULT_LIFE_GOALS.forEach(def => { if (!ids.has(def.id)) g.push(Object.assign({}, def)); });
+    }
+    return g;
+  }
+  function saveLifeGoals(g) { storeSet(LG_GOALS_KEY, g); }
+  function lgFindGoal(goals, id) { return goals.find(x => x.id === id); }
+
+  function lgApplyPeriodResets(goals) {
+    const d = lgGetActiveDateObj();
+    const wKey = lgWeekStartKey(d);
+    const mKey = lgMonthKey(d);
+    const meta = storeGet(LG_META_KEY) || {};
+    let changed = false;
+    if (meta.lastWeek !== wKey) {
+      goals.forEach(g => { if (g.resetsWeekly) g.current = 0; });
+      meta.lastWeek = wKey;
+      changed = true;
+    }
+    if (meta.lastMonth !== mKey) {
+      goals.forEach(g => { if (g.resetsMonthly) g.current = 0; });
+      meta.lastMonth = mKey;
+      changed = true;
+    }
+    storeSet(LG_META_KEY, meta);
+    return changed;
+  }
+
+  function lgCleanupOldPeriodKeys(period, currentKey) {
+    const prefix = period === 'daily' ? 'lgdaily:' : (period === 'weekly' ? 'lgweekly:' : 'lgmonthly:');
+    storeListKeys(prefix).forEach(k => { if (k !== currentKey) storeDelete(k); });
+  }
+
+  function loadLgPeriodState(period) {
+    const key = lgPeriodKey(period);
+    lgCleanupOldPeriodKeys(period, key);
+    let s = storeGet(key);
+    if (!s || s._v !== LG_TEMPLATE_VERSION) s = { _v: LG_TEMPLATE_VERSION, items: {} };
+    LG_TEMPLATES[period].forEach(t => {
+      if (!s.items[t.id]) s.items[t.id] = t.counter ? { count: 0 } : { done: false };
+    });
+    return { key, state: s };
+  }
+  function saveLgPeriodState(key, s) { storeSet(key, s); }
+
+  function lgClamp01(n) { return Math.max(0, Math.min(1, n)); }
+  function lgProgressFraction(goal) {
+    if (goal.kind === 'milestone') return goal.done ? 1 : 0;
+    if (goal.current === null || goal.current === undefined || goal.target === 0) return 0;
+    if (goal.lowerIsBetter) {
+      if (goal.current <= 0) return 0;
+      return lgClamp01(goal.target / goal.current);
+    }
+    return lgClamp01(goal.current / goal.target);
+  }
+
+  function renderLifeGoalCategories() {
+    const goals = loadLifeGoals();
+    const wrap = document.getElementById('lgGoalCategories');
+    wrap.innerHTML = '';
+
+    LG_CATEGORY_ORDER.forEach(cat => {
+      const inCat = goals.filter(g => g.category === cat);
+      if (inCat.length === 0) return;
+
+      const card = document.createElement('div');
+      card.className = 'gm-card lg-cat';
+      const title = document.createElement('div');
+      title.className = 'lg-cat-title';
+      title.textContent = cat;
+      card.appendChild(title);
+
+      inCat.forEach(goal => {
+        const row = document.createElement('div');
+        row.className = 'lg-goal-row' + ((goal.kind === 'milestone' && goal.done) ? ' lg-goal-done' : '');
+
+        const main = document.createElement('div');
+        main.className = 'lg-goal-main';
+        const label = document.createElement('div');
+        label.className = 'lg-goal-label';
+        label.textContent = goal.label;
+        main.appendChild(label);
+
+        if (goal.kind !== 'milestone') {
+          const sub = document.createElement('div');
+          sub.className = 'lg-goal-sub';
+          const curTxt = (goal.current === null || goal.current === undefined) ? '—' : goal.current;
+          sub.textContent = curTxt + ' / ' + goal.target + ' ' + (goal.unit || '');
+          main.appendChild(sub);
+
+          const track = document.createElement('div');
+          track.className = 'lg-progress-track';
+          const fill = document.createElement('div');
+          fill.className = 'lg-progress-fill';
+          fill.style.width = Math.round(lgProgressFraction(goal) * 100) + '%';
+          track.appendChild(fill);
+          main.appendChild(track);
+        }
+        row.appendChild(main);
+
+        if (goal.kind === 'milestone') {
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'lg-milestone-cb';
+          cb.checked = !!goal.done;
+          cb.addEventListener('change', () => {
+            const list = loadLifeGoals();
+            const g = lgFindGoal(list, goal.id);
+            g.done = cb.checked;
+            saveLifeGoals(list);
+            renderLifeGoalCategories();
+          });
+          row.appendChild(cb);
+        } else {
+          const inputWrap = document.createElement('div');
+          inputWrap.className = 'lg-goal-input-wrap';
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.className = 'lg-goal-input';
+          input.value = (goal.current === null || goal.current === undefined) ? '' : goal.current;
+          input.placeholder = '—';
+          input.addEventListener('change', () => {
+            const list = loadLifeGoals();
+            const g = lgFindGoal(list, goal.id);
+            const v = parseFloat(input.value);
+            g.current = isNaN(v) ? null : v;
+            saveLifeGoals(list);
+            renderLifeGoalCategories();
+          });
+          inputWrap.appendChild(input);
+          const unit = document.createElement('span');
+          unit.className = 'lg-goal-unit';
+          unit.textContent = goal.unit || '';
+          inputWrap.appendChild(unit);
+          row.appendChild(inputWrap);
+        }
+
+        card.appendChild(row);
+      });
+
+      wrap.appendChild(card);
+    });
+  }
+
+  let lgActivePeriod = 'daily';
+
+  function renderLgChecklist() {
+    const template = LG_TEMPLATES[lgActivePeriod];
+    const { key, state } = loadLgPeriodState(lgActivePeriod);
+    const listEl = document.getElementById('lgCheckList');
+    const progressEl = document.getElementById('lgChecklistProgress');
+    listEl.innerHTML = '';
+
+    let doneCount = 0;
+    template.forEach(item => {
+      const itemState = state.items[item.id];
+      const li = document.createElement('li');
+
+      if (item.counter) {
+        const goals = loadLifeGoals();
+        const linkedGoal = lgFindGoal(goals, item.counter);
+        const target = linkedGoal ? linkedGoal.target : null;
+        const reachedTarget = target !== null && itemState.count >= target;
+        if (reachedTarget) doneCount++;
+
+        li.className = 'lg-check-row' + (reachedTarget ? ' lg-row-done' : '');
+        const text = document.createElement('span');
+        text.className = 'lg-check-text';
+        text.textContent = item.text + (target !== null ? ' (' + itemState.count + '/' + target + ')' : '');
+        li.appendChild(text);
+
+        const controls = document.createElement('div');
+        controls.className = 'lg-counter-controls';
+        const minusBtn = document.createElement('button');
+        minusBtn.type = 'button';
+        minusBtn.className = 'lg-counter-btn';
+        minusBtn.textContent = '−';
+        minusBtn.disabled = itemState.count <= 0;
+        minusBtn.addEventListener('click', () => lgAdjustCounter(item, -1));
+        const val = document.createElement('span');
+        val.className = 'lg-counter-val';
+        val.textContent = itemState.count;
+        const plusBtn = document.createElement('button');
+        plusBtn.type = 'button';
+        plusBtn.className = 'lg-counter-btn';
+        plusBtn.textContent = '+';
+        plusBtn.addEventListener('click', () => lgAdjustCounter(item, 1));
+        controls.appendChild(minusBtn);
+        controls.appendChild(val);
+        controls.appendChild(plusBtn);
+        li.appendChild(controls);
+      } else {
+        if (itemState.done) doneCount++;
+        li.className = 'lg-check-row' + (itemState.done ? ' lg-row-done' : '');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'lg-check-cb';
+        cb.checked = !!itemState.done;
+        cb.addEventListener('change', () => {
+          const { key: k2, state: s2 } = loadLgPeriodState(lgActivePeriod);
+          s2.items[item.id].done = cb.checked;
+          saveLgPeriodState(k2, s2);
+          renderLgChecklist();
+        });
+        li.appendChild(cb);
+        const text = document.createElement('span');
+        text.className = 'lg-check-text';
+        text.textContent = item.text;
+        li.appendChild(text);
+      }
+
+      listEl.appendChild(li);
+    });
+
+    progressEl.textContent = doneCount + ' / ' + template.length + ' this ' + lgActivePeriod.replace('ly', '');
+  }
+
+  function lgAdjustCounter(item, delta) {
+    const { key, state } = loadLgPeriodState(lgActivePeriod);
+    const itemState = state.items[item.id];
+    itemState.count = Math.max(0, itemState.count + delta);
+    saveLgPeriodState(key, state);
+
+    const goals = loadLifeGoals();
+    const primary = lgFindGoal(goals, item.counter);
+    if (primary) primary.current = Math.max(0, (primary.current || 0) + delta);
+    if (item.alsoCounter) {
+      const secondary = lgFindGoal(goals, item.alsoCounter);
+      if (secondary) secondary.current = Math.max(0, (secondary.current || 0) + delta);
+    }
+    saveLifeGoals(goals);
+
+    renderLgChecklist();
+    renderLifeGoalCategories();
+  }
+
+  document.getElementById('lgTabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.lg-tab');
+    if (!btn) return;
+    lgActivePeriod = btn.dataset.period;
+    document.querySelectorAll('.lg-tab').forEach(b => b.classList.toggle('on', b === btn));
+    renderLgChecklist();
+  });
+
+  function initLifeGoals() {
+    const goals = loadLifeGoals();
+    const resetHappened = lgApplyPeriodResets(goals);
+    saveLifeGoals(goals);
+    renderLifeGoalCategories();
+    renderLgChecklist();
+    if (resetHappened) renderLifeGoalCategories();
+  }
+
   // ---------- Boot ----------
   rollover();
   processStreak();
@@ -1304,10 +1774,12 @@ body::after {
   updateDayRing();
   setInterval(updateDayRing, 60 * 1000);
   startTicker();
+  initLifeGoals();
 
   // Re-render when storage changes from another tab (or our bridged parent).
   window.addEventListener('storage', () => {
     loadToday(); loadTomorrow(); renderStreak();
+    renderLifeGoalCategories(); renderLgChecklist();
   });
 })();
 </script>
@@ -1317,7 +1789,7 @@ document.addEventListener('DOMContentLoaded', function () {
   if (typeof initCloudSync !== 'function') return;
   initCloudSync({
     appKey: 'goals',
-    syncedPrefixes: ['goals:'],
+    syncedPrefixes: ['goals:', 'lifegoals_v1', 'lifegoals_period_meta_v1', 'lgdaily:', 'lgweekly:', 'lgmonthly:'],
     onApplied: function () {
       window.dispatchEvent(new CustomEvent('goals-changed'));
       window.dispatchEvent(new Event('storage'));
