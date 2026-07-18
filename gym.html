@@ -74,6 +74,10 @@ const CONFIG = {
   // raise it for more volume bias (e.g. 10).
   upgradeAtReps: 8,
 
+  // Daily step goal for the Steps card. Steps come from Apple Health via
+  // an iOS Shortcuts automation posting into Supabase — see SETUP.md.
+  stepsGoal: 10000,
+
   // Composition estimate (optional, for the weight chart).
   // Estimates how much of recent weight change is muscle vs fat by
   // cross-referencing the strength trend. Set yearsTraining to scale
@@ -1372,6 +1376,22 @@ img, video, canvas, svg { max-width: 100%; }
       </div>
       <span class="wt-progress-arrow">→</span>
     </button>
+  </div>
+
+  <!-- STEPS — synced from Apple Health via an iOS Shortcuts automation
+       that posts into Supabase (WHOOP doesn't track steps). See SETUP.md. -->
+  <div class="wt-section" id="stepsSection">
+    <div class="wt-divider"><span>STEPS</span></div>
+    <div class="wt-card">
+      <div class="wt-row">
+        <span class="wt-num" id="stepsNum">—</span>
+        <span class="wt-unit" id="stepsGoalLabel">/ 10,000</span>
+      </div>
+      <div class="wt-comp-bars" style="margin: 10px 0 8px;">
+        <div class="wt-comp-bar muscle" id="stepsBar" style="width:0%"></div>
+      </div>
+      <div class="wt-meta" id="stepsMeta">Connect the Shortcuts automation to sync steps</div>
+    </div>
   </div>
 
   <!-- Progress photos overlay -->
@@ -3663,6 +3683,48 @@ img, video, canvas, svg { max-width: 100%; }
     } catch (_) {}
   }
 
+  // ============================================================
+  // STEPS — read-only display, no writes from this app. An iOS Shortcuts
+  // automation posts { date, steps } straight into Supabase's
+  // `daily_steps` table (upsert on `date`); this just reads today's row
+  // and stays live via a realtime subscription. See SETUP.md.
+  // ============================================================
+  const STEPS_GOAL = CONFIG.stepsGoal || 10000;
+  function stepsTodayKey() { return wtDateKey(new Date()); }
+  function stepsRender(steps) {
+    const n = Math.max(0, steps || 0);
+    const goalEl = $('stepsGoalLabel'), numEl = $('stepsNum'), barEl = $('stepsBar'), metaEl = $('stepsMeta');
+    if (!numEl) return;
+    goalEl.textContent = '/ ' + STEPS_GOAL.toLocaleString();
+    numEl.textContent = n.toLocaleString();
+    const pct = Math.max(0, Math.min(100, (n / STEPS_GOAL) * 100));
+    barEl.style.width = pct + '%';
+    metaEl.textContent = n >= STEPS_GOAL
+      ? 'Goal hit — ' + n.toLocaleString() + ' today'
+      : (STEPS_GOAL - n).toLocaleString() + ' to go';
+  }
+  async function stepsFetchToday() {
+    if (!pcSupa) return;
+    try {
+      const { data, error } = await pcSupa
+        .from('daily_steps').select('steps').eq('date', stepsTodayKey()).maybeSingle();
+      if (!error) stepsRender(data ? data.steps : 0);
+    } catch (_) {}
+  }
+  function stepsSubscribe() {
+    if (!pcSupa) return;
+    pcSupa.channel('daily_steps_' + stepsTodayKey())
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'daily_steps',
+        filter: 'date=eq.' + stepsTodayKey(),
+      }, (payload) => {
+        if (payload.new && payload.new.steps != null) stepsRender(payload.new.steps);
+      })
+      .subscribe();
+  }
+
   // Initial sync: connect Supabase, pull current state, subscribe to
   // realtime updates so other devices' changes appear instantly.
   (async function pcInitCloudSync() {
@@ -3694,6 +3756,8 @@ img, video, canvas, svg { max-width: 100%; }
         pcMaybeApplyRemote(payload.new.data);
       })
       .subscribe();
+    stepsFetchToday();
+    stepsSubscribe();
   })();
 
   document.addEventListener('focusout', () => {
