@@ -1,0 +1,72 @@
+Add an AI "Scan anything" tool to my finance dashboard — it reads ANY financial
+image and logs the number to a net-worth account. No chat assistant; pure import.
+
+=== WHERE ===
+Put a card at the top of the Net Worth section called "Scan anything", subtitle
+"Drop a receipt or a bank screenshot — AI reads it, you name the account". Match
+my existing dark/glass design and reuse my storeGet/storeSet + logActivity +
+renderAllNetWorth helpers and my exchange-rate logic. Don't add a new bottom tab.
+
+=== INPUT ===
+A dashed drop zone that accepts: drag-and-drop, click-to-upload (hidden file
+input, accept="image/*"), and paste (⌘V) — but paste should only fire while the
+Net Worth tab is visible so it doesn't hijack other inputs. Before sending,
+downscale the image client-side with a canvas to max 1568px on the long edge,
+JPEG quality 0.85, and send it as base64. Show a thumbnail + "Reading image…"
+spinner while it works.
+
+=== SERVER ENDPOINT (keep the API key server-side) ===
+Create POST /api/receipt. It takes { image: base64, mediaType } and calls Claude's
+vision model (claude-opus-4-8) with raw fetch (no SDK), keeping ANTHROPIC_API_KEY
+in the server env only. Use FORCED TOOL USE (tool_choice) so the model must return
+clean structured JSON — define a tool "read_finance_image" with this schema:
+  - readable  (boolean): false ONLY if there is no monetary amount anywhere
+  - kind      (enum: balance | expense | income | other)
+  - source    (string): bank/app name for a balance (e.g. Revolut), or merchant
+                        for a purchase (e.g. Migros)
+  - currency  (string ISO 4217; infer from Fr/CHF, $, €, £; default CHF)
+  - amount    (number): the single headline figure — the balance on a banking
+                        screen, or the total on a receipt; positive
+  - date      (string YYYY-MM-DD or "")
+  - items     (array of { name, amount }): transactions/line items, best effort
+System prompt must say: read receipts, bills, invoices, bank/fintech app
+screenshots, balances, statements and transaction lists; DO NOT refuse just
+because it isn't a paper receipt; numbers plain (no symbols/commas); read
+"Fr 199.54" as 199.54 / CHF. Return the tool input as JSON.
+
+=== CONFIRM CARD (after a successful read) ===
+Show an editable card with a thumbnail and:
+  - Account / bank name  — text input with a <datalist> autocompleting my
+                           existing account names (this is where I "name the bank")
+  - Amount + Currency    — editable
+  - Action               — select: Set balance | Add to account | Spend (deduct)
+  - Category             — Bank | Stocks | Crypto | Other (used for NEW accounts)
+  - read-only list of line items if any
+  - a live hint sentence describing the exact effect
+  - Apply + Discard buttons
+Smart defaults from the AI's "kind": balance→Set, income→Add, expense→Spend.
+Prefill the name with "source", amount with "amount", currency with the detected
+code (fall back to my display currency). If readable===false, show an error in
+the drop zone instead of the card.
+
+=== APPLY LOGIC ===
+On Apply, convert amount to my base currency via my FX rates, then:
+  - Find an existing account by name (case-insensitive) ACROSS ALL categories.
+    If found, operate on it and ignore the Category picker (also snap the picker
+    to its category when I type a known name).
+  - If not found, CREATE a new account with that name in the chosen Category.
+  - Set    → account value = amount
+    Add    → value += amount
+    Spend  → value -= amount
+  - Log the change to my activity feed with the right sign (new account = "add",
+    existing = "edit"). If the result goes negative, confirm() first.
+  - Re-render net worth and reset the card back to the drop zone.
+
+=== ACCEPTANCE ===
+Dropping a bank app screenshot showing "Fr 199.54" must create/update a "Revolut"
+Bank account at CHF 199.54. Dropping a Migros receipt for 30.65, then typing
+"Revolut", must deduct it to 168.89. Verify the full flow in a real browser
+(stub the API response) before finishing.
+
+---
+Implemented: api/receipt.js, finance.html (Scan anything card + JS wiring).

@@ -1,0 +1,31 @@
+Add an AI "money coach" tab called Nova to my finance dashboard (finance.html),
+a static HTML page deployed on Vercel with serverless functions in /api.
+
+1. Create a serverless function at /api/nova.js that accepts POST
+   { messages: [{role, content}], finance: {...} }, reads ANTHROPIC_API_KEY
+   from the environment, and calls the Anthropic Messages API
+   (https://api.anthropic.com/v1/messages, model "claude-opus-4-8",
+   anthropic-version 2023-06-01, max_tokens 1024) via raw fetch — no SDK.
+   Use a system prompt that makes Nova a warm, concise personal-finance coach
+   that GROUNDS every answer in the finance JSON it's given, quotes the user's
+   real figures, gives general guidance (not regulated advice), never invents
+   data, and replies with the final answer only. Append the finance JSON to the
+   system prompt. Return { text }. Keep the API key server-side only.
+
+2. In finance.html, add a fifth bottom-nav tab (data-tab="nova", ✨ icon) and a
+   matching <div class="section" data-section="nova"> with a chat UI: a scrolling
+   messages area, a few starter-question chips, a textarea + send button, and a
+   "general guidance, not regulated advice" disclaimer. Add it to the allowed-tabs
+   list so it persists.
+
+3. Wire up the chat in JS: keep a running conversation array, gather a finance
+   snapshot from localStorage (net worth from the nw:bank/nw:stocks/nw:crypto/
+   nw:other arrays of {name, amount} in CHF, plus nw_currency, subs,
+   incoming_orders, wishlist), POST to /api/nova, and render replies as chat
+   bubbles with a loading state. Reuse the page's existing storeGet helper.
+
+Match the dashboard's existing dark, monospace styling. Then tell me to set
+ANTHROPIC_API_KEY in Vercel's environment variables before it works.
+
+---
+Implemented: api/nova.js, finance.html (Nova tab + section + JS wiring).

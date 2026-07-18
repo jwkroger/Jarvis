@@ -77,9 +77,62 @@ body::after {
 }
 
 .shell {
+  position: relative;
+  z-index: 5;                 /* sit above the Vitality backdrop layers (0/1/2) */
   max-width: 880px;
   margin: 0 auto;
   padding: 24px 16px 100px;   /* extra bottom padding so tab bar doesn't cover content */
+}
+
+/* ===== Vitality atmospheric backdrop (aurora · mountains · particles) ===== */
+.vty-atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(60% 50% at 50% 30%, rgba(110, 231, 183, 0.16) 0%, rgba(110, 231, 183, 0.06) 32%, rgba(110, 231, 183, 0) 65%),
+    radial-gradient(28% 22% at 50% 38%, rgba(255, 226, 181, 0.07) 0%, rgba(255, 226, 181, 0) 70%),
+    radial-gradient(120% 80% at 50% 100%, rgba(14, 38, 30, 0.5) 0%, rgba(4, 6, 10, 0.95) 75%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+.vty-mountains {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  height: 30vh;
+  min-height: 180px;
+  pointer-events: none;
+  opacity: 0.8;
+}
+.vty-mountains svg { width: 100%; height: 100%; display: block; }
+.vty-particles {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+.vty-particles span {
+  position: absolute;
+  width: 1.5px;
+  height: 1.5px;
+  background: rgba(233, 239, 233, 0.7);
+  border-radius: 50%;
+  animation: vty-backdrop-drift linear infinite;
+  box-shadow: 0 0 6px rgba(167, 243, 208, 0.5);
+}
+@keyframes vty-backdrop-drift {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.55; }
+  100% { transform: translate3d(var(--dx, 12px), var(--dy, -100vh), 0); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vty-particles span { animation: none; }
 }
 
 /* ===== Back to dashboard ===== */
@@ -1570,9 +1623,185 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 600px) {
   .sub-auto-toggle { width: 100%; justify-content: space-between; padding: 12px 14px; }
 }
+
+/* ===== Nova — AI money coach ===== */
+.nova-wrap { display: flex; flex-direction: column; gap: 12px; }
+.nova-messages {
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 240px; max-height: 58vh; overflow-y: auto;
+  padding: 2px;
+}
+.nova-msg {
+  max-width: 88%; padding: 10px 13px; border-radius: 14px;
+  font-size: 13.5px; line-height: 1.5;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.nova-msg-user {
+  align-self: flex-end;
+  background: rgba(255,255,255,0.10);
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-bottom-right-radius: 4px;
+}
+.nova-msg-nova {
+  align-self: flex-start;
+  background: rgba(255,255,255,0.03);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-bottom-left-radius: 4px;
+}
+.nova-msg-loading { color: var(--text-tertiary); font-style: italic; }
+.nova-suggestions { display: flex; flex-wrap: wrap; gap: 8px; }
+.nova-chip {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-secondary);
+  border-radius: 999px; padding: 7px 13px;
+  font-size: 12px; font-family: inherit; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.nova-chip:hover { background: rgba(255,255,255,0.07); color: var(--text-primary); }
+.nova-composer { display: flex; gap: 8px; align-items: flex-end; }
+.nova-input {
+  flex: 1; resize: none; min-height: 44px; max-height: 130px;
+  background: rgba(0,0,0,0.30);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-primary);
+  border-radius: 12px; padding: 11px 13px;
+  font-family: inherit; font-size: 14px; line-height: 1.4; outline: none;
+}
+.nova-input::placeholder { color: var(--text-tertiary); }
+.nova-input:focus { border-color: rgba(255,255,255,0.22); }
+.nova-send {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+  background: var(--text-primary); color: #000; border: none; cursor: pointer;
+  font-size: 18px; font-weight: 700; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+.nova-send:disabled { opacity: 0.4; cursor: default; }
+.nova-disclaimer {
+  font-size: 10.5px; color: var(--text-tertiary);
+  text-align: center; letter-spacing: 0.02em;
+}
+
+/* ===== Receipt scanner — drag a photo in, AI reads it, deduct it ===== */
+.rcpt-card { margin-bottom: 14px; }
+.rcpt-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.rcpt-head-title { display: flex; align-items: center; gap: 8px; }
+.rcpt-head-title .rcpt-emoji { font-size: 16px; }
+.rcpt-head-title .rcpt-t { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.rcpt-head-title .rcpt-s { font-size: 11px; color: var(--text-tertiary); }
+.rcpt-drop {
+  margin-top: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; text-align: center;
+  min-height: 104px; padding: 18px 16px;
+  border: 1.5px dashed rgba(255,255,255,0.14);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.02);
+  color: var(--text-tertiary); cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.rcpt-drop:hover { border-color: rgba(107,227,164,0.35); color: var(--text-secondary); }
+.rcpt-drop.dragover {
+  border-color: var(--success);
+  background: rgba(107,227,164,0.06);
+  color: var(--text-primary);
+}
+.rcpt-drop-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(107,227,164,0.12); color: var(--success); font-size: 18px;
+}
+.rcpt-drop-main { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.rcpt-drop-sub  { font-size: 11px; color: var(--text-tertiary); }
+.rcpt-state { margin-top: 12px; display: flex; align-items: center; gap: 12px; }
+.rcpt-thumb {
+  width: 56px; height: 56px; flex: none; border-radius: 10px; object-fit: cover;
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(0,0,0,0.3);
+}
+.rcpt-busy-text { font-size: 13px; color: var(--text-secondary); }
+.rcpt-busy-text .rcpt-dots::after {
+  content: '…'; animation: rcptDots 1.2s steps(4,end) infinite; }
+@keyframes rcptDots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%{content:'...'} }
+.rcpt-error {
+  margin-top: 12px; font-size: 12.5px; color: var(--danger);
+  background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.22);
+  border-radius: 10px; padding: 10px 12px;
+}
+.rcpt-confirm {
+  margin-top: 12px; border: 1px solid rgba(107,227,164,0.22);
+  background: rgba(107,227,164,0.04); border-radius: var(--radius-md); padding: 14px;
+}
+.rcpt-confirm-top { display: flex; gap: 12px; }
+.rcpt-fields { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rcpt-field { display: flex; flex-direction: column; gap: 3px; }
+.rcpt-field.full { grid-column: 1 / -1; }
+.rcpt-field label {
+  font-size: 9.5px; letter-spacing: 0.10em; text-transform: uppercase;
+  color: var(--text-tertiary); font-weight: 700;
+}
+.rcpt-field input, .rcpt-field select {
+  background: rgba(0,0,0,0.30); border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-primary); border-radius: 8px; padding: 7px 9px;
+  font-family: inherit; font-size: 13px; outline: none; width: 100%;
+}
+.rcpt-field input.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.rcpt-field input:focus, .rcpt-field select:focus { border-color: rgba(107,227,164,0.5); }
+.rcpt-items {
+  margin-top: 10px; font-size: 11.5px; color: var(--text-tertiary);
+  max-height: 96px; overflow-y: auto;
+}
+.rcpt-items .rcpt-item { display: flex; justify-content: space-between; padding: 2px 0; }
+.rcpt-actions { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+.rcpt-btn {
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  color: var(--text-secondary); border-radius: 10px; padding: 8px 14px;
+  font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.rcpt-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.rcpt-btn-apply {
+  background: var(--success); border-color: var(--success); color: #07140d;
+}
+.rcpt-btn-apply:hover { filter: brightness(1.08); color: #07140d; }
+.rcpt-btn-apply:disabled { opacity: 0.45; cursor: default; filter: none; }
+.rcpt-hint { font-size: 11px; color: var(--text-tertiary); margin-top: 8px; }
+.hidden { display: none !important; }
+@media (max-width: 520px) {
+  .rcpt-fields { grid-template-columns: 1fr; }
+}
 </style>
 </head>
 <body>
+
+<!-- ===== Vitality atmospheric backdrop (aurora · mountains · particles) ===== -->
+<div id="vty-backdrop" aria-hidden="true">
+  <div class="vty-atmosphere"></div>
+  <div class="vty-mountains">
+    <svg viewBox="0 0 1600 420" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="vty-mt-far" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#0d1a17" stop-opacity="0"></stop>
+          <stop offset="55%" stop-color="#0d1a17" stop-opacity=".55"></stop>
+          <stop offset="100%" stop-color="#0d1a17" stop-opacity=".95"></stop>
+        </linearGradient>
+        <linearGradient id="vty-mt-near" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#050a09" stop-opacity=".4"></stop>
+          <stop offset="60%" stop-color="#050a09" stop-opacity=".95"></stop>
+          <stop offset="100%" stop-color="#050a09" stop-opacity="1"></stop>
+        </linearGradient>
+      </defs>
+      <path d="M0,300 L120,230 L210,260 L320,180 L430,220 L560,150 L680,210 L820,170 L960,220 L1100,180 L1240,240 L1380,200 L1500,250 L1600,220 L1600,420 L0,420 Z" fill="url(#vty-mt-far)"></path>
+      <path d="M0,360 L100,320 L220,340 L340,290 L460,330 L590,300 L720,340 L860,310 L1000,350 L1140,310 L1280,355 L1420,320 L1540,360 L1600,340 L1600,420 L0,420 Z" fill="url(#vty-mt-near)"></path>
+    </svg>
+  </div>
+  <div class="vty-particles" id="vty-particles"></div>
+</div>
+
 <div class="shell">
 
 <!-- ===== BACK BUTTON ===== -->
@@ -1608,6 +1837,86 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           <option value="EUR">EUR</option>
           <option value="GBP">GBP</option>
         </select>
+      </div>
+    </div>
+
+    <!-- Receipt scanner — drag a photo in, AI reads it, deduct from an account -->
+    <div class="card nw-subcard rcpt-card" id="rcptCard">
+      <div class="rcpt-head">
+        <div class="rcpt-head-title">
+          <span class="rcpt-emoji">🧾</span>
+          <div>
+            <div class="rcpt-t">Scan anything</div>
+            <div class="rcpt-s">Drop a receipt or a bank screenshot — AI reads it, you name the account</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drop zone (default) -->
+      <div class="rcpt-drop" id="rcptDrop" role="button" tabindex="0" aria-label="Upload a financial image">
+        <div class="rcpt-drop-icon">↑</div>
+        <div class="rcpt-drop-main">Drop an image here</div>
+        <div class="rcpt-drop-sub">receipt, bill or bank screenshot · click to upload · paste with ⌘V</div>
+      </div>
+      <input type="file" id="rcptFile" accept="image/*" capture="environment" class="hidden" />
+
+      <!-- Busy state -->
+      <div class="rcpt-state hidden" id="rcptBusy">
+        <img class="rcpt-thumb" id="rcptThumb" alt="" />
+        <div class="rcpt-busy-text">Reading image<span class="rcpt-dots"></span></div>
+      </div>
+
+      <!-- Error -->
+      <div class="rcpt-error hidden" id="rcptError"></div>
+
+      <!-- Confirmation -->
+      <div class="rcpt-confirm hidden" id="rcptConfirm">
+        <div class="rcpt-confirm-top">
+          <img class="rcpt-thumb" id="rcptConfirmThumb" alt="" />
+          <div class="rcpt-fields">
+            <div class="rcpt-field full">
+              <label for="rcptName">Account / bank name</label>
+              <input type="text" id="rcptName" list="rcptAccountList" placeholder="e.g. Revolut" autocomplete="off" />
+              <datalist id="rcptAccountList"></datalist>
+            </div>
+            <div class="rcpt-field">
+              <label for="rcptAmount">Amount</label>
+              <input type="text" inputmode="decimal" id="rcptAmount" class="mono" placeholder="0.00" />
+            </div>
+            <div class="rcpt-field">
+              <label for="rcptCurrency">Currency</label>
+              <select id="rcptCurrency">
+                <option value="CHF">CHF</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+                <option value="GBP">GBP</option>
+              </select>
+            </div>
+            <div class="rcpt-field">
+              <label for="rcptAction">Action</label>
+              <select id="rcptAction">
+                <option value="set">Set balance</option>
+                <option value="add">Add to account</option>
+                <option value="spend">Spend (deduct)</option>
+              </select>
+            </div>
+            <div class="rcpt-field">
+              <label for="rcptCategory">Category</label>
+              <select id="rcptCategory">
+                <option value="bank">🏦 Bank</option>
+                <option value="stocks">📈 Stocks</option>
+                <option value="crypto">🪙 Crypto</option>
+                <option value="other">💼 Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="rcpt-items hidden" id="rcptItems"></div>
+        <div class="rcpt-hint" id="rcptHint"></div>
+        <div class="rcpt-actions">
+          <button type="button" class="rcpt-btn" id="rcptDiscard">Discard</button>
+          <button type="button" class="rcpt-btn rcpt-btn-apply" id="rcptApply">Apply</button>
+        </div>
       </div>
     </div>
 
@@ -1866,6 +2175,29 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   </div>
 </div>
 
+<!-- ===== NOVA — AI money coach ===== -->
+<div class="section" data-section="nova" hidden>
+  <div class="section-title">
+    <span class="section-title-text">NOVA · MONEY COACH</span>
+  </div>
+  <div class="card nova-wrap">
+    <div class="nova-messages" id="novaMessages">
+      <div class="nova-msg nova-msg-nova">Hey — I'm Nova, your money coach. I can see your net worth, subscriptions, incoming orders and wishlist. Ask me anything, or tap a starter below.</div>
+    </div>
+    <div class="nova-suggestions" id="novaSuggestions">
+      <button class="nova-chip" data-q="How am I doing financially? Give me a quick read on my net worth.">How am I doing?</button>
+      <button class="nova-chip" data-q="Where can I realistically cut back on my spending?">Where can I cut back?</button>
+      <button class="nova-chip" data-q="Can I afford everything on my wishlist right now?">Afford my wishlist?</button>
+      <button class="nova-chip" data-q="Which of my subscriptions should I review or cancel?">Review my subs</button>
+    </div>
+    <div class="nova-composer">
+      <textarea id="novaInput" class="nova-input" rows="1" placeholder="Ask Nova about your money…"></textarea>
+      <button id="novaSend" class="nova-send" aria-label="Send message">↑</button>
+    </div>
+    <div class="nova-disclaimer">Nova gives general guidance, not regulated financial advice.</div>
+  </div>
+</div>
+
 </div>
 
 <!-- ===== BOTTOM TAB BAR ===== -->
@@ -1885,6 +2217,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <button class="bot-tab" data-tab="wish">
     <span class="bot-tab-icon">🎯</span>
     <span class="bot-tab-label">Wishlist</span>
+  </button>
+  <button class="bot-tab" data-tab="nova">
+    <span class="bot-tab-icon">✨</span>
+    <span class="bot-tab-label">Nova</span>
   </button>
 </nav>
 
@@ -1935,7 +2271,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   tabs.forEach(b => b.addEventListener('click', () => setActiveTab(b.dataset.tab)));
   const savedTab = storeGet(TAB_KEY);
-  setActiveTab(savedTab && ['net','subs','incoming','wish'].includes(savedTab) ? savedTab : 'net');
+  setActiveTab(savedTab && ['net','subs','incoming','wish','nova'].includes(savedTab) ? savedTab : 'net');
 
   // ============================================================
   // NET WORTH (copied from the main dashboard, verbatim logic)
@@ -3377,6 +3713,413 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   safeRenderTicker();
   setInterval(safeRenderTicker, 1500);
 
+  // ============================================================
+  // NOVA — AI money coach. Sends the chat + a snapshot of the user's
+  // finances to /api/nova (server holds the Anthropic key) and renders
+  // the reply.
+  // ============================================================
+  (function initNova() {
+    const messagesEl = document.getElementById('novaMessages');
+    const inputEl    = document.getElementById('novaInput');
+    const sendBtn    = document.getElementById('novaSend');
+    const suggEl     = document.getElementById('novaSuggestions');
+    if (!messagesEl || !inputEl || !sendBtn) return;
+
+    const convo = []; // [{ role:'user'|'assistant', content:string }]
+
+    // Snapshot of everything Nova should be able to reason about.
+    function gatherFinance() {
+      const breakdown = {};
+      let netWorthCHF = 0;
+      ['bank', 'stocks', 'crypto', 'other'].forEach(k => {
+        const items = storeGet('nw:' + k) || [];
+        breakdown[k] = items.map(it => ({ name: it.name, amountCHF: Number(it.amount) || 0 }));
+        items.forEach(it => { netWorthCHF += Number(it.amount) || 0; });
+      });
+      return {
+        currency: storeGet('nw_currency') || 'CHF',
+        netWorthCHF: Math.round(netWorthCHF),
+        accounts: breakdown,
+        subscriptions: storeGet('subs') || [],
+        incomingOrders: storeGet('incoming_orders') || [],
+        wishlist: storeGet('wishlist') || []
+      };
+    }
+
+    function addBubble(role, text) {
+      const el = document.createElement('div');
+      el.className = 'nova-msg nova-msg-' + role;
+      el.textContent = text;
+      messagesEl.appendChild(el);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return el;
+    }
+
+    async function send(text) {
+      text = (text != null ? text : inputEl.value || '').trim();
+      if (!text || sendBtn.disabled) return;
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      if (suggEl) suggEl.style.display = 'none';
+
+      addBubble('user', text);
+      convo.push({ role: 'user', content: text });
+
+      sendBtn.disabled = true;
+      const pending = addBubble('nova', 'Nova is thinking…');
+      pending.classList.add('nova-msg-loading');
+
+      try {
+        const res = await fetch('/api/nova', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ messages: convo, finance: gatherFinance() })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data && data.error) || ('Nova request failed (' + res.status + ')'));
+        pending.classList.remove('nova-msg-loading');
+        const reply = data.text || '(no response)';
+        pending.textContent = reply;
+        convo.push({ role: 'assistant', content: reply });
+      } catch (e) {
+        pending.classList.remove('nova-msg-loading');
+        pending.textContent = '⚠ ' + ((e && e.message) || "Couldn't reach Nova.");
+      } finally {
+        sendBtn.disabled = false;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    }
+
+    // Auto-grow the textarea as the user types.
+    inputEl.addEventListener('input', () => {
+      inputEl.style.height = 'auto';
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 130) + 'px';
+    });
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+    });
+    sendBtn.addEventListener('click', () => send());
+    if (suggEl) suggEl.querySelectorAll('[data-q]').forEach(chip => {
+      chip.addEventListener('click', () => send(chip.dataset.q));
+    });
+  })();
+
+  // ============================================================
+  // IMAGE SCANNER — drag/drop/paste any financial image (receipt,
+  // bill, bank-app screenshot, balance, statement), send it to
+  // /api/receipt (server holds the Anthropic key), then log it to a
+  // named net-worth account: set its balance, add to it, or deduct a
+  // spend. No chat mentor involved — pure import tool.
+  // ============================================================
+  (function initReceiptScanner() {
+    const card       = document.getElementById('rcptCard');
+    if (!card) return;
+    const dropEl     = document.getElementById('rcptDrop');
+    const fileEl     = document.getElementById('rcptFile');
+    const busyEl     = document.getElementById('rcptBusy');
+    const busyThumb  = document.getElementById('rcptThumb');
+    const errorEl    = document.getElementById('rcptError');
+    const confirmEl  = document.getElementById('rcptConfirm');
+    const confThumb  = document.getElementById('rcptConfirmThumb');
+    const nameEl     = document.getElementById('rcptName');
+    const amountEl   = document.getElementById('rcptAmount');
+    const currencyEl2= document.getElementById('rcptCurrency');
+    const actionEl   = document.getElementById('rcptAction');
+    const categoryEl = document.getElementById('rcptCategory');
+    const acctListEl = document.getElementById('rcptAccountList');
+    const itemsEl    = document.getElementById('rcptItems');
+    const hintEl     = document.getElementById('rcptHint');
+    const applyBtn   = document.getElementById('rcptApply');
+    const discardBtn = document.getElementById('rcptDiscard');
+
+    const VALID_CCY  = ['CHF', 'USD', 'EUR', 'GBP'];
+    const CAT_NAMES  = { bank: 'Bank', stocks: 'Stocks', crypto: 'Crypto', other: 'Other' };
+    let receiptDate  = '';
+    let acctIndex    = {}; // lowercased account name -> { cat }
+
+    function show(el)  { el.classList.remove('hidden'); }
+    function hide(el)  { el.classList.add('hidden'); }
+
+    function reset() {
+      show(dropEl); hide(busyEl); hide(errorEl); hide(confirmEl);
+      fileEl.value = '';
+      receiptDate = '';
+    }
+    function showError(msg) {
+      hide(busyEl); hide(confirmEl); show(dropEl);
+      errorEl.textContent = '⚠ ' + msg;
+      show(errorEl);
+    }
+
+    // Downscale to a sane size (Claude vision likes ≤1568px) and return
+    // a JPEG data URL + raw base64 so the payload stays small & reliable.
+    function readImage(file) {
+      return new Promise((res, rej) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload  = () => { URL.revokeObjectURL(url); res(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Couldn't read that image.")); };
+        img.src = url;
+      });
+    }
+    async function downscale(file) {
+      const img = await readImage(file);
+      let w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      const MAX = 1568;
+      const scale = Math.min(1, MAX / Math.max(w, h || 1));
+      w = Math.max(1, Math.round(w * scale));
+      h = Math.max(1, Math.round(h * scale));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = c.toDataURL('image/jpeg', 0.85);
+      return { dataUrl, base64: dataUrl.split(',')[1] || '', mediaType: 'image/jpeg' };
+    }
+
+    // Build the autocomplete list of existing account names + an index
+    // mapping each name to its category, so typing a known name targets
+    // the right account.
+    function fillAccountList() {
+      acctListEl.innerHTML = '';
+      acctIndex = {};
+      NW_CATS.forEach(c => {
+        (storeGet('nw:' + c.key) || []).forEach(it => {
+          const nm = String(it.name || '').trim();
+          if (!nm) return;
+          acctIndex[nm.toLowerCase()] = { cat: c.key };
+          const o = document.createElement('option');
+          o.value = nm;
+          acctListEl.appendChild(o);
+        });
+      });
+    }
+    // If the typed name matches an existing account, snap the category to it.
+    function matchAccount() {
+      const hit = acctIndex[nameEl.value.trim().toLowerCase()];
+      if (hit) categoryEl.value = hit.cat;
+    }
+
+    function parseAmount() {
+      const n = parseFloat(String(amountEl.value).replace(/[^0-9.\-]/g, ''));
+      return isNaN(n) ? 0 : n;
+    }
+    // Find an existing account by name across all categories.
+    function findAccount(name) {
+      const target = name.trim().toLowerCase();
+      for (const c of NW_CATS) {
+        const items = storeGet('nw:' + c.key) || [];
+        const idx = items.findIndex(it => String(it.name).trim().toLowerCase() === target);
+        if (idx >= 0) return { cat: c.key, items, idx, cur: Number(items[idx].amount) || 0 };
+      }
+      return null;
+    }
+
+    function refreshHint() {
+      const name = nameEl.value.trim();
+      const amount = parseAmount();
+      const rate = exchangeRates[currencyEl2.value] || 1;
+      const datePart = receiptDate ? ('Dated ' + receiptDate + ' · ') : '';
+      if (!name) { hintEl.textContent = 'Type the account or bank name to log this to.'; applyBtn.disabled = true; return; }
+      if (!(amount > 0)) { hintEl.textContent = receiptDate ? ('Dated ' + receiptDate) : ''; applyBtn.disabled = true; return; }
+
+      const amtCHF = amount / rate;
+      const existing = findAccount(name);
+      const catKey = existing ? existing.cat : categoryEl.value;
+      const label = CAT_NAMES[catKey] + ' · ' + name;
+      const cur = existing ? existing.cur : 0;
+      const action = actionEl.value;
+      let msg;
+      if (action === 'set') {
+        msg = (existing ? 'Sets ' : 'Creates ') + label + ' at ' + fmtMoney(amtCHF) + '.';
+      } else if (action === 'add') {
+        msg = 'Adds ' + fmtMoney(amtCHF) + ' to ' + label + ' — ' + fmtMoney(cur + amtCHF) + '.';
+      } else {
+        msg = 'Deducts ' + fmtMoney(amtCHF) + ' from ' + label + ' — ' + fmtMoney(cur - amtCHF) + '.';
+      }
+      hintEl.textContent = datePart + msg;
+      applyBtn.disabled = false;
+    }
+
+    function showConfirm(receipt, dataUrl) {
+      hide(busyEl); hide(errorEl); hide(dropEl);
+      if (receipt.readable === false) {
+        showError("Couldn't find any amounts in that image. Try a clearer screenshot or photo.");
+        return;
+      }
+      confThumb.src = dataUrl;
+      nameEl.value = String(receipt.source || '').trim();
+      const amount = Number(receipt.amount) || 0;
+      amountEl.value = amount ? String(amount) : '';
+      let ccy = String(receipt.currency || '').toUpperCase();
+      if (!VALID_CCY.includes(ccy)) ccy = (currencyEl && currencyEl.value) || 'CHF';
+      currencyEl2.value = ccy;
+      receiptDate = String(receipt.date || '').trim();
+
+      // Default action from what the image is: a balance sets the account,
+      // income adds, a spend deducts. Default category to Bank.
+      const kind = String(receipt.kind || '').toLowerCase();
+      actionEl.value = kind === 'expense' ? 'spend' : (kind === 'income' ? 'add' : 'set');
+      categoryEl.value = 'bank';
+
+      fillAccountList();
+      matchAccount();
+
+      // Transactions / line items, best effort
+      const items = Array.isArray(receipt.items) ? receipt.items : [];
+      if (items.length) {
+        itemsEl.innerHTML = items.slice(0, 20).map(it => {
+          const amt = Number(it.amount != null ? it.amount : it.price);
+          return '<div class="rcpt-item"><span>' + escapeHtml(String(it.name || '')) + '</span>'
+            + '<span>' + (amt ? amt.toFixed(2) : '') + '</span></div>';
+        }).join('');
+        show(itemsEl);
+      } else {
+        itemsEl.innerHTML = ''; hide(itemsEl);
+      }
+
+      refreshHint();
+      show(confirmEl);
+    }
+
+    async function handleFile(file) {
+      if (!file || !/^image\//.test(file.type)) {
+        showError('Please choose an image file.');
+        return;
+      }
+      hide(dropEl); hide(errorEl); hide(confirmEl);
+      let img;
+      try {
+        img = await downscale(file);
+      } catch (e) {
+        showError(e.message || "Couldn't read that image.");
+        return;
+      }
+      busyThumb.src = img.dataUrl;
+      show(busyEl);
+      try {
+        const res = await fetch('/api/receipt', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ image: img.base64, mediaType: img.mediaType })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error((data && data.error) || ('Scan failed (' + res.status + ')'));
+        showConfirm(data, img.dataUrl);
+      } catch (e) {
+        showError((e && e.message) || "Couldn't reach the image reader.");
+      }
+    }
+
+    function apply() {
+      if (applyBtn.disabled) return;
+      const name = nameEl.value.trim();
+      const amount = parseAmount();
+      if (!name) { showError('Type an account or bank name to log this to.'); return; }
+      if (!(amount > 0)) { refreshHint(); return; }
+
+      const rate = exchangeRates[currencyEl2.value] || 1;
+      const amtCHF = amount / rate;
+      const action = actionEl.value;
+
+      // Operate on the existing account if the name matches one; otherwise
+      // create a new account in the chosen category.
+      let { cat, items, idx, cur, isNew } = (() => {
+        const found = findAccount(name);
+        if (found) return { ...found, isNew: false };
+        const c = categoryEl.value;
+        const arr = storeGet('nw:' + c) || [];
+        arr.push({ name: name, amount: 0 });
+        return { cat: c, items: arr, idx: arr.length - 1, cur: 0, isNew: true };
+      })();
+
+      let next;
+      if (action === 'set')       next = amtCHF;
+      else if (action === 'add')  next = cur + amtCHF;
+      else                        next = cur - amtCHF; // spend
+
+      if (next < -0.005) {
+        if (!confirm('"' + name + '" will go negative (' + fmtMoney(next) + '). Log it anyway?')) return;
+      }
+
+      const delta = next - cur;
+      items[idx].amount = next;
+      storeSet('nw:' + cat, items);
+      logActivity(cat, name, delta, isNew ? 'add' : 'edit');
+      renderAllNetWorth();
+      reset();
+    }
+
+    // --- Wiring -------------------------------------------------
+    dropEl.addEventListener('click', () => fileEl.click());
+    dropEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileEl.click(); }
+    });
+    fileEl.addEventListener('change', () => { if (fileEl.files && fileEl.files[0]) handleFile(fileEl.files[0]); });
+
+    ['dragenter', 'dragover'].forEach(ev =>
+      dropEl.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropEl.classList.add('dragover'); }));
+    ['dragleave', 'dragend'].forEach(ev =>
+      dropEl.addEventListener(ev, (e) => { e.preventDefault(); e.stopPropagation(); dropEl.classList.remove('dragover'); }));
+    dropEl.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dropEl.classList.remove('dragover');
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+
+    // Paste a screenshot — only when the Net Worth tab is showing, so we
+    // don't hijack pastes into Nova's composer or other inputs.
+    document.addEventListener('paste', (e) => {
+      const netSection = document.querySelector('.section[data-section="net"]');
+      if (!netSection || netSection.hasAttribute('hidden')) return;
+      const items = (e.clipboardData && e.clipboardData.items) || [];
+      for (const it of items) {
+        if (it.type && it.type.indexOf('image') === 0) {
+          const f = it.getAsFile();
+          if (f) { e.preventDefault(); handleFile(f); break; }
+        }
+      }
+    });
+
+    nameEl.addEventListener('input', () => { matchAccount(); refreshHint(); });
+    amountEl.addEventListener('input', refreshHint);
+    currencyEl2.addEventListener('change', refreshHint);
+    actionEl.addEventListener('change', refreshHint);
+    categoryEl.addEventListener('change', refreshHint);
+    applyBtn.addEventListener('click', apply);
+    discardBtn.addEventListener('click', reset);
+  })();
+
+})();
+</script>
+
+<!-- ===== Vitality backdrop — particle spawner ===== -->
+<script id="vty-backdrop-js">
+(function () {
+  function spawnParticles() {
+    var root = document.getElementById('vty-particles');
+    if (!root) return;
+    root.innerHTML = '';
+    var N = window.innerWidth < 640 ? 14 : 24;
+    for (var i = 0; i < N; i++) {
+      var s = document.createElement('span');
+      s.style.left = (Math.random() * 100) + '%';
+      s.style.top = (60 + Math.random() * 40) + '%';
+      var size = 1.2 + Math.random() * 1.2;
+      s.style.width = s.style.height = size + 'px';
+      var dur = 22 + Math.random() * 28;
+      s.style.animationDuration = dur + 's';
+      s.style.animationDelay = (-Math.random() * dur) + 's';
+      s.style.setProperty('--dx', (Math.random() * 30 - 15) + 'px');
+      s.style.setProperty('--dy', -(60 + Math.random() * 50) + 'vh');
+      root.appendChild(s);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', spawnParticles);
+  } else {
+    spawnParticles();
+  }
 })();
 </script>
 
