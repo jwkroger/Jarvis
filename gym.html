@@ -33,24 +33,41 @@ const CONFIG = {
   // Training split. Most people use Push/Pull/Legs but you can rename
   // these to "Upper", "Lower", "Full Body", "Day A", anything.
   days: [
-    { id: "push", name: "Push" },
-    { id: "pull", name: "Pull" },
-    { id: "legs", name: "Legs" }
+    { id: "push",   name: "Push" },
+    { id: "pull",   name: "Pull" },
+    { id: "legs",   name: "Legs" },
+    { id: "arms",   name: "Arms" },
+    { id: "boxing", name: "Boxing" },
+    { id: "upper",  name: "Upper Body" },
+    { id: "cardio", name: "Cardio" }
   ],
 
   // Split rotation — the order your training days cycle through. Use day
   // ids from `days` above, plus "rest" for off-days. The pill at the top
   // of the app reads this + splitAnchor to compute "what day is today".
-  splitRotation: ["push", "pull", "legs", "rest"],
+  // This is a 14-day (2-week) cycle so it locks to a fixed weekly
+  // schedule: Sun Push, Mon Pull, Tue Legs, Wed Arms/Boxing (alternates
+  // week to week), Thu Rest, Fri Upper Body, Sat Cardio.
+  splitRotation: [
+    "push", "pull", "legs", "arms",   "rest", "upper", "cardio",
+    "push", "pull", "legs", "boxing", "rest", "upper", "cardio"
+  ],
 
   // Anchor: pair a real calendar date with which split day fell on it.
-  // The rotation advances from this point. Set `date` to a recent day
-  // when you knew what split you were on, and `splitId` to that day.
+  // The rotation advances from this point. `date` MUST be a Sunday so the
+  // 14-day cycle above stays locked to the intended weekday. `index` is
+  // this Sunday's position in splitRotation (0 = the first "push").
   // Edit this if your split drifts.
   splitAnchor: {
-    date: "2026-05-12",
-    splitId: "rest"
+    date: "2026-07-12",
+    index: 0
   },
+
+  // Bump this any time you edit days/splitRotation/splitAnchor above —
+  // it forces the new schedule onto browsers that already have an older
+  // split saved (your in-app rotation edits still stick until you bump
+  // this again).
+  splitVersion: 2,
 
   // Progression rule: hit this many reps on the top set → coach tells you
   // to add weight next session. Lower this to be more aggressive (e.g. 6),
@@ -1473,6 +1490,7 @@ img, video, canvas, svg { max-width: 100%; }
     <div class="po-sub-section">
       <div class="po-sub-title">Log today's top set</div>
       <div class="po-bw-banner" id="bwBanner">Bodyweight — log reps only</div>
+      <div class="po-bw-banner" id="tbBanner">Time-based — duration only<span id="tbWhoopNote"></span></div>
       <div class="po-last-set" id="lastSet">
         <span class="po-last-label">Last time</span>
         <span class="po-last-value" id="lastSetValue"></span>
@@ -1487,7 +1505,7 @@ img, video, canvas, svg { max-width: 100%; }
             <button class="po-w-btn" id="weightUpBtn" type="button">+</button>
           </div>
         </div>
-        <div class="po-field">
+        <div class="po-field" id="repsField">
           <label>Reps</label>
           <div class="po-reps-row" id="repsRow" data-value="8">
             <button type="button" class="po-reps-pill" data-v="4">4</button>
@@ -1499,6 +1517,14 @@ img, video, canvas, svg { max-width: 100%; }
             <button type="button" class="po-reps-pill" data-v="10">10</button>
             <button type="button" class="po-reps-pill" data-v="11">11</button>
             <button type="button" class="po-reps-pill" data-v="12">12</button>
+          </div>
+        </div>
+        <div class="po-field" id="minutesField" style="display:none">
+          <label>Duration (min)</label>
+          <div class="po-weight-row">
+            <button class="po-w-btn" id="minutesDownBtn" type="button">−</button>
+            <input type="number" id="minutesInput" step="1" min="0" inputmode="numeric" placeholder="0">
+            <button class="po-w-btn" id="minutesUpBtn" type="button">+</button>
           </div>
         </div>
       </div>
@@ -1719,7 +1745,33 @@ img, video, canvas, svg { max-width: 100%; }
     s.exercises = Array.isArray(s.exercises) ? s.exercises : buildDefaultExercises();
     s.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {};
     s.filterGym = s.filterGym || s.gyms[0].id;
+    // Config-driven split refresh — bumping CONFIG.splitVersion pushes a new
+    // days/splitRotation/splitAnchor onto browsers that already saved an
+    // older split (in-app rotation edits made after this stick until the
+    // version is bumped again).
+    if (s.splitConfigVersion !== CONFIG.splitVersion) {
+      s.days = CONFIG.days.slice();
+      s.splitRotation = (CONFIG.splitRotation || ['Push', 'Pull', 'Legs', 'Rest']).map(x =>
+        (CONFIG.days || []).find(d => d.id === x) ? (CONFIG.days.find(d => d.id === x).name) :
+        (x === 'rest' ? 'Rest' : x.charAt(0).toUpperCase() + x.slice(1))
+      );
+      s.splitAnchor = {
+        date: (CONFIG.splitAnchor && CONFIG.splitAnchor.date) || new Date().toISOString().slice(0, 10),
+        index: (CONFIG.splitAnchor && CONFIG.splitAnchor.index) || 0
+      };
+      s.splitConfigVersion = CONFIG.splitVersion;
+    }
     s.filterDay = s.filterDay || s.days[0].id;
+    if (!s.days.find(d => d.id === s.filterDay)) s.filterDay = s.days[0].id;
+    // Auto-add a duration-based cardio exercise once a "cardio" day exists
+    // (added in split v2) — it pulls minutes from WHOOP instead of logging
+    // weight/reps. Only adds once; delete/edit it in-app after that.
+    if (s.days.find(d => d.id === 'cardio') && !s.exercises.find(e => e.day === 'cardio')) {
+      s.exercises.push({
+        id: uid(), name: 'Cardio (WHOOP)', gym: 'both', day: 'cardio',
+        timeBased: true, repMin: 0, repMax: 0, step: 0, startWeight: 0
+      });
+    }
     // Split rotation lives in state so the user can edit it via the pill modal.
     // Stored as a plain array of names (e.g. ["Push", "Pull", "Legs", "Rest"]).
     if (!Array.isArray(s.splitRotation) || !s.splitRotation.length) {
@@ -1781,6 +1833,7 @@ img, video, canvas, svg { max-width: 100%; }
   // upgrade at 8; a 6-12 lifter ALSO hits it at 8 instead of grinding
   // out 12 reps before adding weight.
   function getRx(ex, logs) {
+    if (ex.timeBased) return null;
     if (!logs.length) return null;
     const last = logs[logs.length - 1];
     const { weight, reps } = last;
@@ -1843,7 +1896,7 @@ img, video, canvas, svg { max-width: 100%; }
     noMsg.style.display = 'none';
     if (!f.find(e => e.id === state.currentEx)) state.currentEx = f[0].id;
     sel.innerHTML = f.map(e => {
-      const wLbl = e.bw ? ' · BW' : (e.startWeight ? ' · ' + e.startWeight + unit() : '');
+      const wLbl = e.timeBased ? ' · time' : e.bw ? ' · BW' : (e.startWeight ? ' · ' + e.startWeight + unit() : '');
       const sh = e.gym === 'both' ? ' ★' : '';
       return '<option value="' + e.id + '"' + (e.id === state.currentEx ? ' selected' : '') + '>' + escape(e.name) + wLbl + sh + '</option>';
     }).join('');
@@ -1851,18 +1904,33 @@ img, video, canvas, svg { max-width: 100%; }
   function renderForm() {
     const ex = getCurrentEx();
     const banner = $('bwBanner');
+    const tbBanner = $('tbBanner');
     const wField = $('weightField');
+    const repsField = $('repsField');
+    const minutesField = $('minutesField');
     const oneRmLbl = $('oneRmLabel');
     const grid = $('logGrid');
     $('weightLabel').textContent = 'Weight (' + unit() + ')';
-    if (ex && ex.bw) {
+    banner.classList.remove('show');
+    tbBanner.classList.remove('show');
+    if (ex && ex.timeBased) {
+      tbBanner.classList.add('show');
+      wField.style.display = 'none';
+      repsField.style.display = 'none';
+      minutesField.style.display = '';
+      grid.classList.add('po-bw-mode');
+      oneRmLbl.textContent = 'Total time';
+    } else if (ex && ex.bw) {
       banner.classList.add('show');
       wField.style.display = 'none';
+      repsField.style.display = '';
+      minutesField.style.display = 'none';
       grid.classList.add('po-bw-mode');
       oneRmLbl.textContent = 'Best reps';
     } else {
-      banner.classList.remove('show');
       wField.style.display = '';
+      repsField.style.display = '';
+      minutesField.style.display = 'none';
       grid.classList.remove('po-bw-mode');
       oneRmLbl.textContent = 'Est. 1RM';
     }
@@ -1875,7 +1943,7 @@ img, video, canvas, svg { max-width: 100%; }
     const logs = ex ? getLogs() : [];
     if (!ex || !logs.length) { wrap.classList.remove('show'); return; }
     const last = logs[logs.length - 1];
-    const setStr = ex.bw ? (last.reps + ' reps') : (last.weight + unit() + ' × ' + last.reps);
+    const setStr = ex.timeBased ? ((last.minutes || 0) + ' min') : ex.bw ? (last.reps + ' reps') : (last.weight + unit() + ' × ' + last.reps);
     const d = new Date(last.date);
     const da = Math.floor((Date.now() - d.getTime()) / 86400000);
     const ago = da === 0 ? 'today' : da === 1 ? 'yesterday' : da + ' days ago';
@@ -1887,6 +1955,13 @@ img, video, canvas, svg { max-width: 100%; }
     const wrap = $('rxWrap');
     const ex = getCurrentEx();
     if (!ex) { wrap.innerHTML = '<div class="po-rx-empty">Pick a gym and day above.</div>'; return; }
+    if (ex.timeBased) {
+      const tLogs = getLogs();
+      const last = tLogs[tLogs.length - 1];
+      const head = last ? '<span class="po-accent">' + (last.minutes || 0) + '</span> min last time' : 'Pulled from WHOOP';
+      wrap.innerHTML = '<div class="po-rx-card"><div class="po-rx-label">' + escape(ex.name) + '</div><div class="po-rx-headline">' + head + '</div><span class="po-rx-tag hold">Cardio</span><p class="po-rx-reason">Duration comes straight from your WHOOP workout for the day — no weight/rep progression to track here.</p></div>';
+      return;
+    }
     const logs = getLogs();
     const rx = getRx(ex, logs);
     if (!rx) {
@@ -1909,9 +1984,17 @@ img, video, canvas, svg { max-width: 100%; }
     const ex = getCurrentEx();
     const logs = ex ? getLogs() : [];
     if (!logs.length) {
-      $('oneRm').innerHTML = '—<span class="po-unit">' + unit() + '</span>';
+      $('oneRm').innerHTML = '—<span class="po-unit">' + (ex && ex.timeBased ? 'min' : unit()) + '</span>';
       $('bestSet').textContent = '—';
       $('sessionCount').textContent = '—';
+      return;
+    }
+    if (ex.timeBased) {
+      const total = logs.reduce((s, l) => s + (l.minutes || 0), 0);
+      $('oneRm').innerHTML = total + '<span class="po-unit">min</span>';
+      const longest = Math.max.apply(null, logs.map(l => l.minutes || 0));
+      $('bestSet').textContent = longest + 'm';
+      $('sessionCount').textContent = logs.length;
       return;
     }
     if (ex.bw) {
@@ -1940,7 +2023,7 @@ img, video, canvas, svg { max-width: 100%; }
       return;
     }
     svg.style.display = 'block'; empty.style.display = 'none';
-    const vals = logs.map(l => ex.bw ? l.reps : estimate1RM(l.weight, l.reps));
+    const vals = logs.map(l => ex.timeBased ? (l.minutes || 0) : ex.bw ? l.reps : estimate1RM(l.weight, l.reps));
     const min = Math.min.apply(null, vals);
     const max = Math.max.apply(null, vals);
     const range = max - min || 1;
@@ -1969,7 +2052,7 @@ img, video, canvas, svg { max-width: 100%; }
     wrap.innerHTML = logs.slice(0, 12).map((l, i) => {
       const d = new Date(l.date);
       const dStr = (d.getMonth() + 1) + '/' + d.getDate();
-      const setStr = ex.bw ? (l.reps + ' reps') : (l.weight + unit() + ' × ' + l.reps);
+      const setStr = ex.timeBased ? ((l.minutes || 0) + ' min') : ex.bw ? (l.reps + ' reps') : (l.weight + unit() + ' × ' + l.reps);
       const realIdx = logs.length - 1 - i; // since we reversed
       return '<div class="po-hist-row">'
         + '<div class="po-hist-date">' + dStr + '</div>'
@@ -2034,6 +2117,7 @@ img, video, canvas, svg { max-width: 100%; }
     const row = document.getElementById('repsRow');
     if (!row) return;
     const ex = getCurrentEx();
+    if (ex && ex.timeBased) { row.innerHTML = ''; return; }
     let repMin, repMax;
     if (ex) {
       repMin = Math.max(1, parseInt(ex.repMin, 10) || 1);
@@ -2066,12 +2150,83 @@ img, video, canvas, svg { max-width: 100%; }
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
     renderPastWorkouts();
-    // Pre-fill weight input with last logged weight (or starting weight)
     const ex = getCurrentEx();
-    if (ex && !ex.bw) {
+    if (ex && ex.timeBased) {
+      // Pre-fill duration from WHOOP for today's cardio session (still
+      // requires tapping Log to actually save it).
+      prefillMinutesFromWhoop(ex);
+    } else if (ex && !ex.bw) {
+      // Pre-fill weight input with last logged weight (or starting weight)
       const logs = getLogs();
       const w = logs.length ? logs[logs.length - 1].weight : (ex.startWeight || 0);
       $('weightInput').value = w;
+    }
+  }
+
+  // ============================================================
+  // WHOOP → auto-fill today's cardio duration (pre-fill, you confirm).
+  // Reuses the same connection this dashboard's Health page saves when
+  // you tap "Connect WHOOP" there (shared localStorage token) — nothing
+  // extra to set up here. Sums every WHOOP workout recorded today,
+  // regardless of sport type.
+  // ============================================================
+  const WHOOP_KEY = 'whoop_tokens_v1';
+  let whoopPrefillExId = null;
+  let whoopPrefillAttempted = false;
+
+  function whoopTokens() { try { return JSON.parse(localStorage.getItem(WHOOP_KEY)); } catch (e) { return null; } }
+  function whoopSaveTokens(t) { try { localStorage.setItem(WHOOP_KEY, JSON.stringify(t)); } catch (e) {} }
+
+  async function whoopRefresh(t) {
+    if (!t.refresh) return null;
+    try {
+      const r = await fetch('/api/whoop-refresh', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: t.refresh })
+      });
+      const j = await r.json();
+      if (j.access_token) {
+        const next = { access: j.access_token, refresh: j.refresh_token || t.refresh, expires: Date.now() + (j.expires_in || 3500) * 1000 };
+        whoopSaveTokens(next);
+        return next;
+      }
+    } catch (e) {}
+    return null;
+  }
+  async function whoopFetch(path, t) {
+    const [p, qs] = path.split('?');
+    const params = new URLSearchParams(qs || ''); params.set('path', p);
+    const r = await fetch('/api/whoop-data?' + params.toString(), { headers: { 'Authorization': 'Bearer ' + t.access, 'Accept': 'application/json' } });
+    if (r.status === 401) { const n = await whoopRefresh(t); if (n) return whoopFetch(path, n); throw new Error('unauthorized'); }
+    if (!r.ok) throw new Error('WHOOP ' + r.status);
+    return await r.json();
+  }
+
+  async function prefillMinutesFromWhoop(ex) {
+    if (whoopPrefillExId !== ex.id) { whoopPrefillExId = ex.id; whoopPrefillAttempted = false; }
+    const input = $('minutesInput'), note = $('tbWhoopNote');
+    if (!input || whoopPrefillAttempted) return;
+    if ((parseFloat(input.value) || 0) > 0) return; // don't clobber something already entered
+    whoopPrefillAttempted = true;
+    let t = whoopTokens();
+    if (!t) { if (note) note.textContent = ' · connect WHOOP on the Health page to auto-fill'; return; }
+    if (t.expires && Date.now() > t.expires - 60000) { const n = await whoopRefresh(t); if (n) t = n; }
+    try {
+      const startOfDay = new Date(); startOfDay.setHours(0, 0, 0, 0);
+      const j = await whoopFetch('/activity/workout?start=' + startOfDay.toISOString() + '&limit=10', t);
+      const records = (j && j.records) || [];
+      const todayKey = wtDateKey(new Date());
+      const mins = records
+        .filter(w => w.start && wtDateKey(new Date(w.start)) === todayKey)
+        .reduce((sum, w) => sum + Math.max(0, Math.round((new Date(w.end) - new Date(w.start)) / 60000)), 0);
+      if (mins > 0 && (parseFloat(input.value) || 0) === 0) {
+        input.value = mins;
+        if (note) note.textContent = ' · pulled ' + mins + ' min from WHOOP — tap Log to confirm';
+      } else if (note) {
+        note.textContent = ' · no WHOOP workout today yet';
+      }
+    } catch (e) {
+      if (note) note.textContent = ' · could not reach WHOOP';
     }
   }
 
@@ -2156,12 +2311,16 @@ img, video, canvas, svg { max-width: 100%; }
     } else {
       empty.classList.add('hidden');
       list.innerHTML = sum.perEx.map(e => {
-        const top = e.ex.bw
-          ? 'top ' + Math.max.apply(null, e.sets.map(s => s.reps)) + ' reps'
-          : 'top ' + Math.max.apply(null, e.sets.map(s => s.weight)) + u;
-        const meta = e.ex.bw
-          ? (e.sets.length + ' set' + (e.sets.length === 1 ? '' : 's') + ' · ' + top)
-          : (e.sets.length + ' set' + (e.sets.length === 1 ? '' : 's') + ' · ' + top + ' · ' + Math.round(e.vol) + u + ' total');
+        const top = e.ex.timeBased
+          ? Math.round(e.sets.reduce((s, x) => s + (x.minutes || 0), 0)) + ' min'
+          : e.ex.bw
+            ? 'top ' + Math.max.apply(null, e.sets.map(s => s.reps)) + ' reps'
+            : 'top ' + Math.max.apply(null, e.sets.map(s => s.weight)) + u;
+        const meta = e.ex.timeBased
+          ? (e.sets.length + ' session' + (e.sets.length === 1 ? '' : 's') + ' · ' + top)
+          : e.ex.bw
+            ? (e.sets.length + ' set' + (e.sets.length === 1 ? '' : 's') + ' · ' + top)
+            : (e.sets.length + ' set' + (e.sets.length === 1 ? '' : 's') + ' · ' + top + ' · ' + Math.round(e.vol) + u + ' total');
         return '<li class="po-tw-row">'
           + '<span class="po-tw-row-name">' + escape(e.ex.name) + '</span>'
           + '<span class="po-tw-row-meta">' + meta + '</span>'
@@ -2254,14 +2413,24 @@ img, video, canvas, svg { max-width: 100%; }
     state.currentEx = e.target.value; saveState(); renderAll();
   });
   $('weightDownBtn').addEventListener('click', () => {
-    const ex = getCurrentEx(); if (!ex || ex.bw) return;
+    const ex = getCurrentEx(); if (!ex || ex.bw || ex.timeBased) return;
     const w = parseFloat($('weightInput').value) || 0;
     $('weightInput').value = Math.max(0, w - (ex.step || 2.5));
   });
   $('weightUpBtn').addEventListener('click', () => {
-    const ex = getCurrentEx(); if (!ex || ex.bw) return;
+    const ex = getCurrentEx(); if (!ex || ex.bw || ex.timeBased) return;
     const w = parseFloat($('weightInput').value) || 0;
     $('weightInput').value = w + (ex.step || 2.5);
+  });
+  $('minutesDownBtn').addEventListener('click', () => {
+    const ex = getCurrentEx(); if (!ex || !ex.timeBased) return;
+    const m = parseInt($('minutesInput').value, 10) || 0;
+    $('minutesInput').value = Math.max(0, m - 5);
+  });
+  $('minutesUpBtn').addEventListener('click', () => {
+    const ex = getCurrentEx(); if (!ex || !ex.timeBased) return;
+    const m = parseInt($('minutesInput').value, 10) || 0;
+    $('minutesInput').value = m + 5;
   });
   // Delegated click handler — reps row is regenerated per exercise via
   // renderRepsRow(), so we listen on the container rather than the
@@ -2276,6 +2445,19 @@ img, video, canvas, svg { max-width: 100%; }
   $('logBtn').addEventListener('click', () => {
     const ex = getCurrentEx();
     if (!ex) return;
+    if (ex.timeBased) {
+      const mins = parseInt($('minutesInput').value, 10) || 0;
+      if (mins <= 0) { alert('Enter a duration.'); return; }
+      const arr = state.logs[ex.id] || [];
+      arr.push({ minutes: mins, date: new Date().toISOString() });
+      state.logs[ex.id] = arr;
+      saveState(); renderAll();
+      const btn = $('logBtn');
+      btn.style.transition = 'transform 0.15s';
+      btn.style.transform = 'scale(0.96)';
+      setTimeout(() => { btn.style.transform = ''; }, 160);
+      return;
+    }
     const reps = parseInt($('repsRow').dataset.value, 10) || 0;
     if (reps <= 0) { alert('Pick a rep count.'); return; }
     const w = ex.bw ? 0 : (parseFloat($('weightInput').value) || 0);
@@ -3532,24 +3714,26 @@ img, video, canvas, svg { max-width: 100%; }
   #nvFab {
     position: absolute; top: 16px; right: 16px; z-index: 30;
     width: 46px; height: 46px; border-radius: 50%; border: 0; cursor: pointer; padding: 0;
-    overflow: hidden; -webkit-tap-highlight-color: transparent; transition: transform 0.12s;
-    background: radial-gradient(circle at 50% 58%, #8A6CFF, #4C2EC9 80%);
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.14), 0 6px 22px rgba(124,92,255,0.55),
-                inset 0 -6px 14px rgba(38,10,86,0.65);
+    display: grid; place-items: center; -webkit-tap-highlight-color: transparent; transition: transform 0.12s;
+    background: transparent; box-shadow: 0 6px 22px -4px rgba(110,231,183,0.55);
   }
   #nvFab:active { transform: scale(0.93); }
-  /* swirling conic plasma */
+  /* reactor avatar — same design as nova-lite.html */
   #nvFab::before {
-    content: ''; position: absolute; inset: -28%; border-radius: 50%;
-    background: conic-gradient(from 0deg, #6D4AE0, #C9B8FF, #7C5CFF, #B98AFF, #8A6CFF, #6D4AE0);
-    filter: blur(2px); opacity: 0.92; animation: nvspin 7s linear infinite;
+    content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent, #67E8F9, transparent 55%, #6EE7B7, transparent);
+    -webkit-mask: radial-gradient(closest-side, transparent 58%, #000 60%); mask: radial-gradient(closest-side, transparent 58%, #000 60%);
+    animation: nvspin 6s linear infinite;
   }
-  /* glassy gloss highlight + bottom shade */
   #nvFab::after {
-    content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-    background: radial-gradient(circle at 34% 26%, rgba(255,255,255,0.92), rgba(255,255,255,0) 40%),
-                radial-gradient(circle at 72% 82%, rgba(18,7,40,0.5), transparent 55%);
+    content: ''; position: absolute; inset: 18%; border-radius: 50%;
+    background: conic-gradient(from 180deg, transparent, #6EE7B7, transparent 50%, #67E8F9, transparent);
+    -webkit-mask: radial-gradient(closest-side, transparent 48%, #000 50%); mask: radial-gradient(closest-side, transparent 48%, #000 50%);
+    animation: nvspin 3.4s linear infinite reverse;
   }
+  #nvFab .nv-core { width: 34%; height: 34%; border-radius: 50%; z-index: 1;
+    background: radial-gradient(circle at 35% 30%, #fff, #6EE7B7 60%, #1f8f66);
+    box-shadow: 0 0 18px #6EE7B7; }
   @keyframes nvspin { to { transform: rotate(360deg); } }
   #nvFab .nv-online { position: absolute; right: 1px; bottom: 1px; z-index: 2; width: 11px; height: 11px; border-radius: 50%; background: #6ee7b7; border: 2px solid #0a0a0b; box-shadow: 0 0 6px rgba(110,231,183,0.7); }
   #nvPanel {
@@ -3561,9 +3745,18 @@ img, video, canvas, svg { max-width: 100%; }
   }
   #nvPanel.open { display: flex; }
   .nv-head { display: flex; align-items: center; gap: 9px; padding: 13px 14px; border-bottom: 1px solid rgba(255,255,255,0.07); }
-  .nv-head .nv-av { position: relative; overflow: hidden; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
-    background: radial-gradient(circle at 34% 26%, rgba(255,255,255,0.85), rgba(255,255,255,0) 42%),
-               conic-gradient(from 0deg, #6D4AE0, #C9B8FF, #7C5CFF, #B98AFF, #6D4AE0); }
+  .nv-head .nv-av { position: relative; width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; }
+  .nv-head .nv-av::before { content: ''; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent, #67E8F9, transparent 55%, #6EE7B7, transparent);
+    -webkit-mask: radial-gradient(closest-side, transparent 58%, #000 60%); mask: radial-gradient(closest-side, transparent 58%, #000 60%);
+    animation: nvspin 6s linear infinite; }
+  .nv-head .nv-av::after { content: ''; position: absolute; inset: 18%; border-radius: 50%;
+    background: conic-gradient(from 180deg, transparent, #6EE7B7, transparent 50%, #67E8F9, transparent);
+    -webkit-mask: radial-gradient(closest-side, transparent 48%, #000 50%); mask: radial-gradient(closest-side, transparent 48%, #000 50%);
+    animation: nvspin 3.4s linear infinite reverse; }
+  .nv-head .nv-av i { width: 34%; height: 34%; border-radius: 50%; z-index: 1; display: block;
+    background: radial-gradient(circle at 35% 30%, #fff, #6EE7B7 60%, #1f8f66);
+    box-shadow: 0 0 10px #6EE7B7; }
   .nv-head .nv-name { font-size: 14px; font-weight: 700; color: #FAFAFA; }
   .nv-head .nv-sub { font-size: 10.5px; color: #76746E; }
   .nv-head .nv-x { margin-left: auto; border: 0; background: transparent; color: #76746E; font-size: 20px; cursor: pointer; line-height: 1; }
@@ -3583,10 +3776,10 @@ img, video, canvas, svg { max-width: 100%; }
   .nv-dots i:nth-child(2){animation-delay:.15s} .nv-dots i:nth-child(3){animation-delay:.3s}
   @keyframes nvb { 0%,100%{opacity:.3;transform:translateY(0)} 50%{opacity:1;transform:translateY(-3px)} }
 </style>
-<button id="nvFab" type="button" aria-label="Open Nova coach"><span class="nv-online"></span></button>
+<button id="nvFab" type="button" aria-label="Open Nova coach"><i class="nv-core"></i><span class="nv-online"></span></button>
 <div id="nvPanel" role="dialog" aria-label="Nova gym coach">
   <div class="nv-head">
-    <div class="nv-av"></div>
+    <div class="nv-av"><i></i></div>
     <div><div class="nv-name">Nova</div><div class="nv-sub">your gym coach</div></div>
     <button class="nv-x" id="nvClose" type="button" aria-label="Close">×</button>
   </div>
