@@ -12,8 +12,8 @@ devices with **Supabase**. WHOOP is an optional add-on.
 3. Framework Preset: **Other**. Root Directory: **`./`**. Build/output: leave blank (static).
 4. **Deploy.** You'll get a URL like `https://your-app.vercel.app`.
 
-The dashboard opens to a **password screen** — the default password is in
-[`lock.js`](lock.js) (`var PASSWORD = "qwer"`). Change it to whatever you want.
+The dashboard opens to a **password screen** — the password is set in
+[`lock.js`](lock.js) (`var PASSWORD = "..."`). Change it to whatever you want.
 
 ---
 
@@ -202,12 +202,12 @@ cards and debt in the **Linked accounts** card on the Net Worth tab.
 5. Redeploy → open **Finances → Net Worth** → **Linked accounts** card →
    **Connect a bank**.
 
-> ⚠️ **This dashboard currently has no passcode lock** — `lock.js` (referenced by every
-> page's `<script src="lock.js">`) was deleted from the repo, so the password screen
-> described in step 1 doesn't actually run right now. That was a low-stakes gap before;
-> once you link a real bank account, anyone who finds your Vercel URL can view (and
-> disconnect) it. Recreate `lock.js` with a real password before connecting production
-> bank data, or ask for a fresh one to be built.
+> Note: `lock.js` is a client-side-only password screen — fine for keeping casual
+> visitors out, but anyone who views page source can read the password, and it does
+> nothing to protect the `/api/*` endpoints themselves (they respond to direct
+> requests regardless of whether the lock screen was passed). That's an acceptable
+> tradeoff for a personal dashboard with an unlisted URL, but worth knowing before
+> real bank data flows through it.
 
 ---
 
@@ -220,5 +220,4 @@ cards and debt in the **Linked accounts** card on the Net Worth tab.
 5. (Optional) Steps: SQL #3 + the Shortcuts automation above.
 6. (Optional) Plaid: run the `plaid_items` SQL, then the four Plaid/Supabase
    service-role env vars in Vercel.
-7. Recreate `lock.js` with a real password before this holds real bank data — it's
-   currently missing from the repo. Done.
+7. Change the password in `lock.js`. Done.
