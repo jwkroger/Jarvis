@@ -103,6 +103,7 @@ body::after {
 .gm-eyebrow { font-size: 10.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px; }
 .gm-progress-row { display: flex; align-items: baseline; gap: 6px; }
 .gm-progress-num { font-size: 42px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.045em; color: var(--text-primary); line-height: 1; }
+.gm-progress-total { font-family: var(--font-mono); font-size: 18px; color: var(--text-tertiary); }
 .gm-progress-label { font-size: 11px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-tertiary); margin-left: 4px; }
 
 .gm-streak {
@@ -113,6 +114,8 @@ body::after {
   color: var(--accent);
   font-size: 11px; font-weight: 700;
   letter-spacing: 0.06em;
+  white-space: nowrap;
+  transition: opacity 0.2s;
 }
 
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; position: relative; }
@@ -143,6 +146,28 @@ body::after {
 }
 .income-row:hover .income-delete { opacity: 1; }
 .income-delete:hover { color: var(--danger); }
+
+/* Segmented monthly progress bar (like the goal bar on the main dashboard) */
+.gm-bar { display: flex; gap: 4px; height: 6px; margin: 4px 0 16px; }
+.gm-bar:empty { display: none; }
+.gm-bar-seg { flex: 1; background: rgba(255,255,255,0.08); border-radius: 3px; }
+.gm-bar-seg-done { background: var(--success); box-shadow: 0 0 6px rgba(107,227,164,0.40); }
+.gm-bar-seg-over { background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent); }
+
+/* Weekly "most important tasks" note */
+.mit-meta { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.mit-range { font-size: 12px; color: var(--text-tertiary); }
+.mit-textarea {
+  width: 100%; min-height: 120px; resize: vertical;
+  padding: 13px 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; background: rgba(0,0,0,0.28);
+  color: var(--text-primary);
+  font-family: inherit; font-size: 14px; line-height: 1.55;
+  outline: none; transition: border-color 0.2s, background 0.2s;
+}
+.mit-textarea::placeholder { color: var(--text-tertiary); white-space: pre-line; }
+.mit-textarea:focus { border-color: rgba(255,255,255,0.28); background: rgba(0,0,0,0.36); }
 
 .gm-input-wrap {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
@@ -194,6 +219,54 @@ body::after {
     </div>
   </div>
 
+  <!-- ============ THIS WEEK — most important tasks ============ -->
+  <div class="section">
+    <div class="section-title">This Week</div>
+    <div class="gm-card">
+      <div class="mit-meta">
+        <div class="gm-eyebrow" style="margin-bottom:0">Most Important Tasks</div>
+        <span class="mit-range" id="mitRange"></span>
+      </div>
+      <textarea class="mit-textarea" id="mitText" placeholder="Top priorities, meetings, and direction for the week…&#10;e.g. Mon 2pm QBR prep · Wed ship Acme proposal · Fri 1:1s"></textarea>
+    </div>
+  </div>
+
+  <!-- ============ SAOs ============ -->
+  <div class="section">
+    <div class="section-title">SAOs</div>
+    <div class="gm-card">
+      <div class="gm-header">
+        <div class="gm-header-left">
+          <div class="gm-eyebrow">This Month</div>
+          <div class="gm-progress-row">
+            <span class="gm-progress-num" id="saoMonthNum">0</span>
+            <span class="gm-progress-total" id="saoMonthTotal">/ 6</span>
+            <span class="gm-progress-label">opportunities</span>
+          </div>
+        </div>
+        <span class="gm-streak" id="saoYearPill">0 / 50 this year</span>
+      </div>
+
+      <div class="gm-bar" id="saoBar"></div>
+
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-num" id="saoBestNum">0</div><div class="stat-label">Best Month</div></div>
+        <div class="stat"><div class="stat-num" id="saoYearNum">0</div><div class="stat-label">This Year</div></div>
+        <div class="stat"><div class="stat-num" id="saoRemainNum">50</div><div class="stat-label">To Goal</div></div>
+        <div class="stat"><div class="stat-num" id="saoAvgNum">0</div><div class="stat-label">Avg / Month</div></div>
+      </div>
+
+      <ul class="goal-list" id="saoList" style="margin-top:14px"></ul>
+
+      <div class="gm-input-wrap">
+        <input class="gm-input date-input" id="saoDate" type="date">
+        <input class="gm-input" id="saoNote" type="text" placeholder="Opportunity / note (optional)…" autocomplete="off">
+        <button class="gm-add" id="saoAdd" type="button">Log SAO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ OVERVIEW ============ -->
   <div class="section">
     <div class="section-title">Overview</div>
     <div class="gm-card">
@@ -217,6 +290,7 @@ body::after {
     </div>
   </div>
 
+  <!-- ============ PAYCHECKS ============ -->
   <div class="section">
     <div class="section-title">Paychecks</div>
     <div class="gm-card">
@@ -237,35 +311,20 @@ body::after {
 <script>
 (function () {
   'use strict';
-
-  const STORE_KEY = 'evotix:paychecks';
   const $ = (id) => document.getElementById(id);
 
-  const listEl   = $('evList');
-  const dateEl   = $('evDate');
-  const noteEl   = $('evNote');
-  const hoursEl  = $('evHours');
-  const amountEl = $('evAmount');
-  const addEl    = $('evAdd');
-
-  function load() {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
-    catch (e) { return []; }
-  }
-  function save(items) { localStorage.setItem(STORE_KEY, JSON.stringify(items)); }
-
-  function todayStr() {
-    const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  }
-  function mondayStr() {
-    const d = new Date();
+  /* ---------- shared date helpers ---------- */
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function toDateStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function todayStr() { return toDateStr(new Date()); }
+  function mondayOf(d) {
     const day = d.getDay();
     const diff = (day === 0 ? -6 : 1 - day);
     const m = new Date(d);
     m.setDate(d.getDate() + diff);
-    return m.getFullYear() + '-' + String(m.getMonth()+1).padStart(2,'0') + '-' + String(m.getDate()).padStart(2,'0');
+    return m;
   }
+  function mondayStr() { return toDateStr(mondayOf(new Date())); }
   function fmtMoney(n) {
     const v = Math.round((n + Number.EPSILON) * 100) / 100;
     return '$' + v.toLocaleString(undefined, { minimumFractionDigits: v % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 });
@@ -275,108 +334,314 @@ body::after {
     const dt = new Date(y, m - 1, d);
     return dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
+  function loadJSON(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
-  function renderStats() {
-    const items = load();
-    const today = todayStr();
-    const week = mondayStr();
-    const month = today.slice(0, 7);
-    const year = today.slice(0, 4);
+  /* =============================================================== */
+  /*  THIS WEEK — most important tasks                                */
+  /* =============================================================== */
+  (function mitInit() {
+    const mon = mondayOf(new Date());
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+    const weekKey = 'evotix:mit:' + toDateStr(mon);
+    const rangeEl = $('mitRange');
+    const textEl = $('mitText');
 
-    let weekSum = 0, monthSum = 0, yearSum = 0, yearHours = 0, count = 0;
-    items.forEach((it) => {
-      const amt = Number(it.amount) || 0;
-      const hrs = Number(it.hours) || 0;
-      count++;
-      if (it.date >= week && it.date <= today) weekSum += amt;
-      if (it.date.slice(0,7) === month) monthSum += amt;
-      if (it.date.slice(0,4) === year) { yearSum += amt; yearHours += hrs; }
+    rangeEl.textContent = 'Week of ' +
+      mon.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' – ' +
+      sun.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+    function load() { return loadJSON(weekKey, { text: '' }); }
+    function applyToField() { textEl.value = load().text || ''; }
+    applyToField();
+
+    let saveTimer = null;
+    textEl.addEventListener('input', () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        saveJSON(weekKey, { text: textEl.value, updatedAt: Date.now() });
+      }, 400);
+    });
+    textEl.addEventListener('blur', () => {
+      clearTimeout(saveTimer);
+      saveJSON(weekKey, { text: textEl.value, updatedAt: Date.now() });
     });
 
-    $('evMonthNum').textContent = fmtMoney(monthSum);
-    $('evWeekNum').textContent = fmtMoney(weekSum);
-    $('evYearNum').textContent = fmtMoney(yearSum);
-    $('evHoursNum').textContent = (Math.round(yearHours * 10) / 10) + 'h';
-    $('evAvgNum').textContent = fmtMoney(count ? items.reduce((s, it) => s + (Number(it.amount) || 0), 0) / count : 0);
-    $('evYtdPill').textContent = fmtMoney(yearSum) + ' YTD';
-  }
+    window.__mitReload = applyToField;
+  })();
 
-  function render() {
-    const items = load();
-    listEl.innerHTML = '';
+  /* =============================================================== */
+  /*  SAOs                                                            */
+  /* =============================================================== */
+  (function saoInit() {
+    const STORE_KEY = 'evotix:saos';
+    const MONTH_TARGET = 6;
+    const YEAR_TARGET = 50;
 
-    if (items.length === 0) {
-      const li = document.createElement('li');
-      li.className = 'empty-state';
-      li.textContent = 'No paychecks logged yet — add your first one below.';
-      listEl.appendChild(li);
-      renderStats();
-      return;
+    const listEl  = $('saoList');
+    const dateEl  = $('saoDate');
+    const noteEl  = $('saoNote');
+    const addEl   = $('saoAdd');
+    const barEl   = $('saoBar');
+
+    function load() { return loadJSON(STORE_KEY, []); }
+    function save(items) { saveJSON(STORE_KEY, items); }
+
+    function pushGoalDone(dateStr, text) {
+      const key = 'goals:' + dateStr;
+      const goals = loadJSON(key, []);
+      goals.push({ text: text, done: true, doneAt: Date.now() });
+      saveJSON(key, goals);
     }
 
-    const sorted = items.map((it, i) => ({ it, i })).sort((a, b) => b.it.date.localeCompare(a.it.date));
+    function renderBar(monthCount) {
+      barEl.innerHTML = '';
+      const segs = Math.max(MONTH_TARGET, Math.min(monthCount, MONTH_TARGET));
+      for (let i = 0; i < MONTH_TARGET; i++) {
+        const seg = document.createElement('div');
+        seg.className = 'gm-bar-seg' + (i < monthCount ? ' gm-bar-seg-done' : '');
+        barEl.appendChild(seg);
+      }
+      if (monthCount > MONTH_TARGET) {
+        const over = document.createElement('div');
+        over.className = 'gm-bar-seg gm-bar-seg-over';
+        over.style.flex = '0 0 18px';
+        barEl.appendChild(over);
+      }
+    }
 
-    sorted.forEach(({ it, i }) => {
-      const li = document.createElement('li');
-      li.className = 'income-row';
+    function renderStats() {
+      const items = load();
+      const today = todayStr();
+      const month = today.slice(0, 7);
+      const year = today.slice(0, 4);
+      const monthIdx = new Date().getMonth() + 1;
 
-      const date = document.createElement('span');
-      date.className = 'income-date';
-      date.textContent = fmtDateShort(it.date);
+      let monthCount = 0, yearCount = 0;
+      const byMonth = {};
+      items.forEach((it) => {
+        if (!it.date) return;
+        if (it.date.slice(0, 7) === month) monthCount++;
+        if (it.date.slice(0, 4) === year) {
+          yearCount++;
+          const mk = it.date.slice(0, 7);
+          byMonth[mk] = (byMonth[mk] || 0) + 1;
+        }
+      });
+      const bestMonth = Object.values(byMonth).reduce((a, b) => Math.max(a, b), 0);
 
-      const note = document.createElement('span');
-      note.className = 'income-note';
-      note.textContent = it.note || 'Paycheck';
+      $('saoMonthNum').textContent = String(monthCount);
+      $('saoMonthTotal').textContent = '/ ' + MONTH_TARGET;
+      const yearPill = $('saoYearPill');
+      yearPill.textContent = yearCount + ' / ' + YEAR_TARGET + ' this year';
+      yearPill.style.opacity = yearCount > 0 ? '1' : '0.6';
 
-      const hours = document.createElement('span');
-      hours.className = 'income-hours';
-      hours.textContent = it.hours ? (Number(it.hours) + 'h') : '';
+      $('saoBestNum').textContent = bestMonth + (bestMonth >= 10 ? ' 🔥' : '');
+      $('saoYearNum').textContent = String(yearCount);
+      $('saoRemainNum').textContent = yearCount >= YEAR_TARGET ? 'Hit! 🎉' : String(YEAR_TARGET - yearCount);
+      $('saoAvgNum').textContent = (Math.round((yearCount / monthIdx) * 10) / 10).toString();
 
-      const amount = document.createElement('span');
-      amount.className = 'income-amount';
-      amount.textContent = fmtMoney(Number(it.amount) || 0);
+      renderBar(monthCount);
+    }
 
-      const del = document.createElement('button');
-      del.className = 'income-delete';
-      del.type = 'button';
-      del.textContent = '×';
-      del.addEventListener('click', () => {
-        const list = load(); list.splice(i, 1); save(list); render();
+    function render() {
+      const items = load();
+      listEl.innerHTML = '';
+
+      if (items.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'empty-state';
+        li.textContent = 'No SAOs logged yet — log your first one below.';
+        listEl.appendChild(li);
+        renderStats();
+        return;
+      }
+
+      const sorted = items.map((it, i) => ({ it, i })).sort((a, b) => b.it.date.localeCompare(a.it.date));
+
+      sorted.forEach(({ it, i }) => {
+        const li = document.createElement('li');
+        li.className = 'income-row';
+
+        const date = document.createElement('span');
+        date.className = 'income-date';
+        date.textContent = fmtDateShort(it.date);
+
+        const note = document.createElement('span');
+        note.className = 'income-note';
+        note.textContent = it.note || 'Opportunity';
+
+        const del = document.createElement('button');
+        del.className = 'income-delete';
+        del.type = 'button';
+        del.textContent = '×';
+        del.addEventListener('click', () => {
+          const list = load(); list.splice(i, 1); save(list); render();
+        });
+
+        li.append(date, note, del);
+        listEl.appendChild(li);
       });
 
-      li.append(date, note, hours, amount, del);
-      listEl.appendChild(li);
-    });
+      renderStats();
+    }
 
-    renderStats();
-  }
+    function add() {
+      const date = dateEl.value || todayStr();
+      const note = noteEl.value.trim();
+      const items = load();
+      items.push({ date: date, note: note });
+      save(items);
+      pushGoalDone(date, 'SAO: ' + (note || 'Opportunity logged'));
+      noteEl.value = '';
+      render();
+    }
+    addEl.addEventListener('click', add);
+    noteEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
 
-  function add() {
-    const date = dateEl.value || todayStr();
-    const note = noteEl.value.trim();
-    const hours = parseFloat(hoursEl.value) || 0;
-    const amount = parseFloat(amountEl.value);
-    if (!amount || amount <= 0) return;
-    const items = load();
-    items.push({ date: date, note: note, hours: hours, amount: amount });
-    save(items);
-    noteEl.value = '';
-    hoursEl.value = '';
-    amountEl.value = '';
-    noteEl.focus();
+    dateEl.value = todayStr();
     render();
-  }
-  addEl.addEventListener('click', add);
-  [noteEl, hoursEl, amountEl].forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); }));
 
-  dateEl.value = todayStr();
-  render();
+    window.__saoReload = render;
+  })();
 
+  /* =============================================================== */
+  /*  OVERVIEW + PAYCHECKS                                            */
+  /* =============================================================== */
+  (function paychecksInit() {
+    const STORE_KEY = 'evotix:paychecks';
+
+    const listEl   = $('evList');
+    const dateEl   = $('evDate');
+    const noteEl   = $('evNote');
+    const hoursEl  = $('evHours');
+    const amountEl = $('evAmount');
+    const addEl    = $('evAdd');
+
+    function load() { return loadJSON(STORE_KEY, []); }
+    function save(items) { saveJSON(STORE_KEY, items); }
+
+    function renderStats() {
+      const items = load();
+      const today = todayStr();
+      const week = mondayStr();
+      const month = today.slice(0, 7);
+      const year = today.slice(0, 4);
+
+      let weekSum = 0, monthSum = 0, yearSum = 0, yearHours = 0, count = 0;
+      items.forEach((it) => {
+        const amt = Number(it.amount) || 0;
+        const hrs = Number(it.hours) || 0;
+        count++;
+        if (it.date >= week && it.date <= today) weekSum += amt;
+        if (it.date.slice(0,7) === month) monthSum += amt;
+        if (it.date.slice(0,4) === year) { yearSum += amt; yearHours += hrs; }
+      });
+
+      $('evMonthNum').textContent = fmtMoney(monthSum);
+      $('evWeekNum').textContent = fmtMoney(weekSum);
+      $('evYearNum').textContent = fmtMoney(yearSum);
+      $('evHoursNum').textContent = (Math.round(yearHours * 10) / 10) + 'h';
+      $('evAvgNum').textContent = fmtMoney(count ? items.reduce((s, it) => s + (Number(it.amount) || 0), 0) / count : 0);
+      $('evYtdPill').textContent = fmtMoney(yearSum) + ' YTD';
+    }
+
+    function render() {
+      const items = load();
+      listEl.innerHTML = '';
+
+      if (items.length === 0) {
+        const li = document.createElement('li');
+        li.className = 'empty-state';
+        li.textContent = 'No paychecks logged yet — add your first one below.';
+        listEl.appendChild(li);
+        renderStats();
+        return;
+      }
+
+      const sorted = items.map((it, i) => ({ it, i })).sort((a, b) => b.it.date.localeCompare(a.it.date));
+
+      sorted.forEach(({ it, i }) => {
+        const li = document.createElement('li');
+        li.className = 'income-row';
+
+        const date = document.createElement('span');
+        date.className = 'income-date';
+        date.textContent = fmtDateShort(it.date);
+
+        const note = document.createElement('span');
+        note.className = 'income-note';
+        note.textContent = it.note || 'Paycheck';
+
+        const hours = document.createElement('span');
+        hours.className = 'income-hours';
+        hours.textContent = it.hours ? (Number(it.hours) + 'h') : '';
+
+        const amount = document.createElement('span');
+        amount.className = 'income-amount';
+        amount.textContent = fmtMoney(Number(it.amount) || 0);
+
+        const del = document.createElement('button');
+        del.className = 'income-delete';
+        del.type = 'button';
+        del.textContent = '×';
+        del.addEventListener('click', () => {
+          const list = load(); list.splice(i, 1); save(list); render();
+        });
+
+        li.append(date, note, hours, amount, del);
+        listEl.appendChild(li);
+      });
+
+      renderStats();
+    }
+
+    function add() {
+      const date = dateEl.value || todayStr();
+      const note = noteEl.value.trim();
+      const hours = parseFloat(hoursEl.value) || 0;
+      const amount = parseFloat(amountEl.value);
+      if (!amount || amount <= 0) return;
+      const items = load();
+      items.push({ date: date, note: note, hours: hours, amount: amount });
+      save(items);
+      noteEl.value = '';
+      hoursEl.value = '';
+      amountEl.value = '';
+      noteEl.focus();
+      render();
+    }
+    addEl.addEventListener('click', add);
+    [noteEl, hoursEl, amountEl].forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); }));
+
+    dateEl.value = todayStr();
+    render();
+
+    window.__paychecksReload = render;
+  })();
+
+  /* =============================================================== */
+  /*  Cloud sync — this page's own data, plus a bridge into the       */
+  /*  shared "goals" store so SAOs logged here show up in the daily   */
+  /*  Goals list / ticker on the Main page.                           */
+  /* =============================================================== */
   if (window.initCloudSync) {
     window.initCloudSync({
       appKey: 'evotix',
-      syncedKeys: [STORE_KEY],
-      onApplied: render
+      syncedKeys: ['evotix:paychecks', 'evotix:saos'],
+      syncedPrefixes: ['evotix:mit:'],
+      onApplied: function () {
+        if (window.__paychecksReload) window.__paychecksReload();
+        if (window.__saoReload) window.__saoReload();
+        if (window.__mitReload) window.__mitReload();
+      }
+    });
+    window.initCloudSync({
+      appKey: 'goals',
+      syncedPrefixes: ['goals:']
     });
   }
 })();
