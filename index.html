@@ -324,6 +324,22 @@ body::after {
 .jv-hint { color: var(--text-tertiary); font-size: 11.5px; margin-top: 4px; display: none; }
 .jv-hint.show { display: block; }
 
+.jv-actions { display: flex; gap: 10px; margin-top: 16px; }
+.jv-btn {
+  flex: 1; padding: 11px 14px; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  color: var(--text-primary); font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.jv-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); }
+.jv-btn:active { transform: translateY(1px); }
+.jv-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.jv-btn.jv-btn-active {
+  background: rgba(107,227,164,0.14); border-color: rgba(107,227,164,0.4); color: #6BE3A4;
+}
+@media (max-width: 480px) { .jv-actions { flex-direction: column; } }
+
 .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 18px; }
 .week-day {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -458,9 +474,13 @@ body::after {
           <span class="jv-core"></span>
         </button>
         <div class="jv-body">
-          <div class="jv-line" id="jvLine">Tap the orb to hear your briefing, or talk to me anytime.</div>
+          <div class="jv-line" id="jvLine">Get your morning briefing, or ask me anything.</div>
           <div class="jv-hint" id="jvHint"></div>
         </div>
+      </div>
+      <div class="jv-actions">
+        <button class="jv-btn" id="jvBriefBtn" type="button">🌅 Daily Briefing</button>
+        <button class="jv-btn" id="jvAskBtn" type="button">🎤 Ask Jarvis</button>
       </div>
     </div>
   </div>
@@ -1221,6 +1241,8 @@ body::after {
   const orb = document.getElementById('jvOrb');
   const jvLine = document.getElementById('jvLine');
   const jvHint = document.getElementById('jvHint');
+  const jvBriefBtn = document.getElementById('jvBriefBtn');
+  const jvAskBtn = document.getElementById('jvAskBtn');
   if (!orb) return;
 
   const GREET_KEY = 'jarvis:lastGreetDate';
@@ -1236,7 +1258,11 @@ body::after {
   function alreadyGreetedToday(){ try { return localStorage.getItem(GREET_KEY) === todayStr(); } catch(e){ return false; } }
   function markGreetedToday(){ try { localStorage.setItem(GREET_KEY, todayStr()); } catch(e){} }
 
-  function setState(s){ orb.dataset.state = s; }
+  function setState(s){
+    orb.dataset.state = s;
+    jvAskBtn.classList.toggle('jv-btn-active', s === 'listening');
+    jvAskBtn.textContent = s === 'listening' ? '⏹ Stop' : '🎤 Ask Jarvis';
+  }
   function showHint(msg){ jvHint.textContent = msg; jvHint.classList.add('show'); }
   function clearHint(){ jvHint.classList.remove('show'); }
 
@@ -1363,7 +1389,7 @@ body::after {
     rec.onerror = (e) => {
       activeRec = null;
       setState('idle'); busy = false;
-      if (e.error === 'aborted') { jvLine.textContent = lastSpokenText || 'Tap the orb to hear your briefing, or talk to me anytime.'; return; }
+      if (e.error === 'aborted') { jvLine.textContent = lastSpokenText || 'Get your morning briefing, or ask me anything.'; return; }
       jvLine.textContent = RECOGNITION_ERRORS[e.error] || 'Didn’t catch that — tap to try again.';
     };
     rec.onend = () => {
@@ -1376,6 +1402,7 @@ body::after {
     try { rec.start(); } catch(e) { activeRec = null; setState('idle'); busy = false; }
   }
 
+  // ---- orb itself: just an interrupt control (stop whatever's in flight) ----
   orb.addEventListener('click', () => {
     if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
@@ -1386,22 +1413,40 @@ body::after {
       activeRec.stop(); // tap again to stop early and send whatever was captured
       return;
     }
-    if (busy) return;
-    if (!alreadyGreetedToday()) { fetchBriefing(); return; }
-    if (SR) { startListening(); return; }
-    if (lastSpokenText) { speak(lastSpokenText); return; }
-    fetchBriefing();
   });
 
-  // ---- boot: greet once per day, otherwise sit idle and ready ----
+  // ---- explicit buttons: each does exactly one thing, no hidden state-dependent branching ----
+  jvBriefBtn.addEventListener('click', () => {
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+    if (activeRec) {
+      const rec = activeRec;
+      activeRec = null;
+      rec.onresult = null; rec.onerror = null; rec.onend = null;
+      try { rec.abort(); } catch(e) {}
+    }
+    busy = false;
+    fetchBriefing(); // always gives a fresh briefing, regardless of whether one already ran today
+  });
+
+  jvAskBtn.addEventListener('click', () => {
+    if (orb.dataset.state === 'listening' && activeRec) {
+      activeRec.stop(); // tap again to stop early and send whatever was captured
+      return;
+    }
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+    if (busy) return;
+    startListening();
+  });
+
+  // ---- boot: auto-speak the briefing once per day, otherwise sit idle and ready ----
   if (!alreadyGreetedToday()) {
     setState('attention');
-    jvLine.textContent = 'Tap for your morning briefing.';
-    setTimeout(fetchBriefing, 800); // best-effort auto-speak; falls back to the tap above if the browser blocks it
+    jvLine.textContent = 'Fetching your morning briefing…';
+    setTimeout(fetchBriefing, 800); // best-effort auto-speak; the Daily Briefing button also works any time
   } else {
     setState('idle');
   }
-  if (!SR) showHint('Voice replies work here — voice input needs Chrome or Edge.');
+  if (!SR) { jvAskBtn.disabled = true; showHint('Voice replies work here — voice input needs Chrome or Edge.'); }
 })();
 </script>
 </body>
