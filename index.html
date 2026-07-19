@@ -1343,7 +1343,7 @@ body::after {
     clearHint();
     const rec = new SR();
     activeRec = rec;
-    rec.lang = navigator.language || 'en-US';
+    rec.lang = 'en-US'; // hardcoded to match how you actually speak, rather than trusting the browser's reported locale
     rec.interimResults = true; // show live captions so you can see it's hearing you correctly
     rec.maxAlternatives = 1;
     setState('listening');
