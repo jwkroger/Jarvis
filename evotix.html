@@ -147,6 +147,19 @@ body::after {
 .income-row:hover .income-delete { opacity: 1; }
 .income-delete:hover { color: var(--danger); }
 
+.month-group-header {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 16px 2px 7px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.month-group-header:first-child { padding-top: 0; border-top: 0; }
+.month-group-count {
+  font-family: var(--font-mono); font-weight: 700; color: var(--text-secondary);
+  font-size: 10.5px; letter-spacing: 0; text-transform: none;
+}
+
 /* Segmented monthly progress bar (like the goal bar on the main dashboard) */
 .gm-bar { display: flex; gap: 4px; height: 6px; margin: 4px 0 16px; }
 .gm-bar:empty { display: none; }
@@ -484,6 +497,11 @@ body::after {
       renderBar(monthCount);
     }
 
+    function fmtMonthLabel(ym) {
+      const [y, m] = ym.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    }
+
     function render() {
       const items = load();
       listEl.innerHTML = '';
@@ -497,30 +515,51 @@ body::after {
         return;
       }
 
-      const sorted = items.map((it, i) => ({ it, i })).sort((a, b) => b.it.date.localeCompare(a.it.date));
+      // Group by month (most recent month first, most recent date first within it)
+      // instead of one long flat list.
+      const groups = {};
+      items.forEach((it, i) => {
+        const ym = (it.date || '').slice(0, 7) || 'Unknown';
+        (groups[ym] = groups[ym] || []).push({ it, i });
+      });
+      const months = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
-      sorted.forEach(({ it, i }) => {
-        const li = document.createElement('li');
-        li.className = 'income-row';
+      months.forEach((ym) => {
+        const group = groups[ym].sort((a, b) => b.it.date.localeCompare(a.it.date));
 
-        const date = document.createElement('span');
-        date.className = 'income-date';
-        date.textContent = fmtDateShort(it.date);
+        const header = document.createElement('li');
+        header.className = 'month-group-header';
+        const label = document.createElement('span');
+        label.textContent = ym === 'Unknown' ? 'Unknown' : fmtMonthLabel(ym);
+        const count = document.createElement('span');
+        count.className = 'month-group-count';
+        count.textContent = group.length + (group.length === 1 ? ' opportunity' : ' opportunities');
+        header.append(label, count);
+        listEl.appendChild(header);
 
-        const note = document.createElement('span');
-        note.className = 'income-note';
-        note.textContent = it.note || 'Opportunity';
+        group.forEach(({ it, i }) => {
+          const li = document.createElement('li');
+          li.className = 'income-row';
 
-        const del = document.createElement('button');
-        del.className = 'income-delete';
-        del.type = 'button';
-        del.textContent = '×';
-        del.addEventListener('click', () => {
-          const list = load(); list.splice(i, 1); save(list); render();
+          const date = document.createElement('span');
+          date.className = 'income-date';
+          date.textContent = fmtDateShort(it.date);
+
+          const note = document.createElement('span');
+          note.className = 'income-note';
+          note.textContent = it.note || 'Opportunity';
+
+          const del = document.createElement('button');
+          del.className = 'income-delete';
+          del.type = 'button';
+          del.textContent = '×';
+          del.addEventListener('click', () => {
+            const list = load(); list.splice(i, 1); save(list); render();
+          });
+
+          li.append(date, note, del);
+          listEl.appendChild(li);
         });
-
-        li.append(date, note, del);
-        listEl.appendChild(li);
       });
 
       renderStats();
