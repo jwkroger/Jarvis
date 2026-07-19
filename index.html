@@ -18,6 +18,7 @@
   --text-primary: #FAFAFA;
   --text-secondary: #B8B6B0;
   --text-tertiary: #76746E;
+  --success: #6BE3A4;
   --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
@@ -58,6 +59,65 @@ body::after {
   -webkit-text-fill-color: transparent; color: transparent;
 }
 @media (max-width: 480px) { .dash-title { font-size: 22px; } }
+
+/* ===== Important Today banner (NASDAQ-ticker, top few goals only) ===== */
+.imp-ticker-row { display: grid; grid-template-columns: 1fr; gap: 4px; margin-bottom: 20px; }
+.imp-ticker {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px; border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.42) 0%, rgba(0,0,0,0.30) 100%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+  cursor: pointer;
+}
+.imp-ticker::after {
+  content: ''; position: absolute; top: 0; bottom: 0; width: 30%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  pointer-events: none; animation: imp-ticker-sweep 8s linear infinite;
+}
+@keyframes imp-ticker-sweep { 0% { left: -40%; } 100% { left: 110%; } }
+.imp-ticker-led { display: inline-flex; align-items: center; }
+.imp-ticker-led-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #F2C063; box-shadow: 0 0 8px rgba(242,192,99,0.7);
+  animation: imp-led-pulse 1.6s ease-in-out infinite;
+}
+@keyframes imp-led-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+.imp-ticker-label {
+  font-family: var(--font-mono); font-size: 9.5px; font-weight: 800;
+  letter-spacing: 0.18em; color: var(--text-tertiary); white-space: nowrap;
+}
+.imp-ticker-stage { position: relative; overflow: hidden; flex: 1; height: 22px; }
+.imp-ticker-item {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text-primary);
+  white-space: nowrap; opacity: 1; transition: opacity 0.22s ease;
+}
+.imp-ticker-item.is-fading { opacity: 0; }
+.imp-ticker-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; flex-shrink: 0; border-radius: 5px;
+  border: 1.5px solid rgba(255,255,255,0.22); background: rgba(0,0,0,0.28);
+  font-size: 10px; color: transparent; cursor: pointer;
+}
+.imp-ticker-check.checked { background: var(--success); border-color: var(--success); color: #07140d; }
+.imp-ticker-status { display: inline-flex; justify-content: center; width: 14px; color: #F2C063; flex-shrink: 0; }
+.imp-ticker-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.imp-ticker-meta {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.04em; color: var(--text-secondary);
+  padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.04); white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .imp-ticker { padding: 9px 12px; }
+  .imp-ticker-label { font-size: 9px; letter-spacing: 0.14em; }
+  .imp-ticker-item { font-size: 12px; }
+  .imp-ticker-meta { font-size: 10px; padding: 2px 7px; }
+}
 
 /* ===== BENTO GRID ===== */
 .bento {
@@ -376,6 +436,19 @@ body::after {
     </button>
   </div>
 
+  <div class="imp-ticker-row">
+    <div class="imp-ticker" id="impTicker" role="button" tabindex="0" aria-label="Most important todos today — open Main" aria-live="polite" aria-atomic="true">
+      <div class="imp-ticker-led"><span class="imp-ticker-led-dot"></span></div>
+      <div class="imp-ticker-label">TODAY</div>
+      <div class="imp-ticker-stage" id="impTickerStage">
+        <div class="imp-ticker-item">
+          <span class="imp-ticker-text">Loading…</span>
+        </div>
+      </div>
+      <div class="imp-ticker-meta" id="impTickerMeta">0/0</div>
+    </div>
+  </div>
+
   <div class="section" id="jarvisSection">
     <div class="section-title">Jarvis</div>
     <div class="gm-card jv-card">
@@ -560,6 +633,20 @@ body::after {
       <h2 class="tile-title">Evotix</h2>
       <div class="tile-foot">
         <span class="tile-sub">Job income</span>
+        <span class="tile-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Small tile -->
+    <a class="tile" href="nutrition.html" style="--accent:#BEF264">
+      <div class="tile-top">
+        <span class="tile-num">·10</span>
+        <span class="tile-emoji">🥗</span>
+      </div>
+      <div class="tile-spacer"></div>
+      <h2 class="tile-title">Nutrition</h2>
+      <div class="tile-foot">
+        <span class="tile-sub">Calories & macros</span>
         <span class="tile-arrow">→</span>
       </div>
     </a>
@@ -858,6 +945,105 @@ body::after {
     if (key.indexOf('goals:') === 0) window.dispatchEvent(new CustomEvent('goals-changed'));
   }
 
+  /* ---------- Important Today banner — top few priority goals only,
+     distinct from the full checklist below and from Main's own ticker
+     (which cycles ALL pending goals). Prioritizes goals starred with the
+     ⚡ "queue" flag (set from Main); falls back to the earliest pending
+     goals when nothing is starred. ---------- */
+  let impCycleIdx = 0;
+  let impFirstTick = true;
+
+  function buildImpItems() {
+    const key = 'goals:' + getActiveDateString();
+    const goals = getGoals(key);
+    const total = goals.length;
+    const done = goals.filter((g) => g && g.done).length;
+    if (total === 0) {
+      return { items: [{ status: 'empty', text: 'No goals set for today — add one below.' }], done, total, key };
+    }
+    const withIdx = goals.map((g, i) => ({ g, i }));
+    const queued = withIdx.filter((x) => x.g && x.g.queued && !x.g.done);
+    const pending = withIdx.filter((x) => x.g && !x.g.done);
+    const source = queued.length ? queued : pending;
+    if (!source.length) {
+      return { items: [{ status: 'done', text: '✓ All goals done — solid day.' }], done, total, key };
+    }
+    const items = source.slice(0, 5).map((x) => ({
+      status: queued.length ? 'important' : 'pending',
+      idx: x.i, text: x.g.text, done: !!x.g.done
+    }));
+    return { items, done, total, key };
+  }
+
+  function impStatusGlyph(status) {
+    if (status === 'done') return '✓';
+    if (status === 'important') return '⚡';
+    if (status === 'pending') return '○';
+    return '·';
+  }
+
+  function renderImpTicker() {
+    const stage = $('impTickerStage');
+    const metaEl = $('impTickerMeta');
+    if (!stage || !metaEl) return;
+    const { items, done, total, key } = buildImpItems();
+    if (impCycleIdx >= items.length) impCycleIdx = 0;
+    const item = items[impCycleIdx];
+    impCycleIdx = (impCycleIdx + 1) % items.length;
+    metaEl.textContent = done + '/' + total;
+
+    let row = stage.querySelector('.imp-ticker-item');
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'imp-ticker-item';
+      stage.appendChild(row);
+    }
+
+    const apply = () => {
+      row.innerHTML = '';
+      if (item.idx != null) {
+        const cb = document.createElement('span');
+        cb.className = 'imp-ticker-check' + (item.done ? ' checked' : '');
+        cb.textContent = '✓';
+        cb.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const list = getGoals(key);
+          if (list[item.idx]) {
+            list[item.idx].done = !list[item.idx].done;
+            if (list[item.idx].done) list[item.idx].doneAt = Date.now(); else delete list[item.idx].doneAt;
+            setGoals(key, list);
+          }
+          renderAll();
+        });
+        row.appendChild(cb);
+      } else {
+        const status = document.createElement('span');
+        status.className = 'imp-ticker-status';
+        status.textContent = impStatusGlyph(item.status);
+        row.appendChild(status);
+      }
+      const text = document.createElement('span');
+      text.className = 'imp-ticker-text';
+      text.textContent = item.text;
+      row.appendChild(text);
+      row.classList.remove('is-fading');
+    };
+
+    if (impFirstTick) { apply(); impFirstTick = false; return; }
+    row.classList.add('is-fading');
+    setTimeout(apply, 220);
+  }
+
+  const impTickerEl = $('impTicker');
+  if (impTickerEl) {
+    impTickerEl.addEventListener('click', () => { window.location.href = 'main.html'; });
+    impTickerEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); window.location.href = 'main.html'; }
+    });
+  }
+  window.addEventListener('goals-changed', () => { impCycleIdx = 0; renderImpTicker(); });
+  setInterval(renderImpTicker, 5000);
+
   /* ---------- week calendar strip ---------- */
   function renderWeekStrip() {
     const stripEl = $('weekStrip');
@@ -1000,6 +1186,8 @@ body::after {
     renderWeekStrip();
     renderToday();
     renderImportant();
+    impCycleIdx = 0;
+    renderImpTicker();
   }
   renderAll();
   window.addEventListener('storage', renderAll);
@@ -1139,29 +1327,62 @@ body::after {
   }
 
   // ---- voice input (push-to-talk) ----
+  let activeRec = null;
+  const RECOGNITION_ERRORS = {
+    'no-speech': 'Didn’t hear anything — tap and try again.',
+    'audio-capture': 'No microphone found on this device.',
+    'not-allowed': 'Microphone access is blocked — allow it for this site and tap again.',
+    'network': 'Speech recognition needs an internet connection.',
+    'service-not-allowed': 'Speech recognition was blocked by the browser.',
+  };
+
   function startListening(){
     if (!SR) { showHint('Voice input needs Chrome or Edge on this device.'); return; }
     if (busy) return;
     busy = true;
+    clearHint();
     const rec = new SR();
-    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    activeRec = rec;
+    rec.lang = navigator.language || 'en-US';
+    rec.interimResults = true; // show live captions so you can see it's hearing you correctly
+    rec.maxAlternatives = 1;
     setState('listening');
     jvLine.textContent = 'Listening…';
+
+    let finalText = '';
     rec.onresult = (e) => {
-      const said = e.results[0][0].transcript;
-      jvLine.textContent = said;
-      setState('think');
-      askJarvis(said);
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += chunk;
+        else interim += chunk;
+      }
+      jvLine.textContent = (finalText + interim).trim() || 'Listening…';
     };
-    rec.onerror = () => { setState('idle'); busy = false; jvLine.textContent = 'Didn’t catch that — tap to try again.'; };
-    rec.onend = () => { if (orb.dataset.state === 'listening') { setState('idle'); busy = false; } };
-    try { rec.start(); } catch(e) { setState('idle'); busy = false; }
+    rec.onerror = (e) => {
+      activeRec = null;
+      setState('idle'); busy = false;
+      if (e.error === 'aborted') { jvLine.textContent = lastSpokenText || 'Tap the orb to hear your briefing, or talk to me anytime.'; return; }
+      jvLine.textContent = RECOGNITION_ERRORS[e.error] || 'Didn’t catch that — tap to try again.';
+    };
+    rec.onend = () => {
+      activeRec = null;
+      if (orb.dataset.state !== 'listening') return; // already handled by onerror, or superseded
+      const said = finalText.trim();
+      if (said) { setState('think'); askJarvis(said); }
+      else { setState('idle'); busy = false; jvLine.textContent = 'Didn’t catch that — tap to try again.'; }
+    };
+    try { rec.start(); } catch(e) { activeRec = null; setState('idle'); busy = false; }
   }
 
   orb.addEventListener('click', () => {
     if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
       setState('idle'); busy = false;
+      return;
+    }
+    if (orb.dataset.state === 'listening' && activeRec) {
+      activeRec.stop(); // tap again to stop early and send whatever was captured
       return;
     }
     if (busy) return;

@@ -679,6 +679,9 @@ body::after {
 }
 .lg-goal-input:focus { border-color: rgba(255,255,255,0.28); }
 .lg-goal-unit { font-size: 11px; color: var(--text-tertiary); }
+.lg-goal-pace { font-size: 11px; color: #F2C063; margin-top: 5px; }
+.lg-goal-pace.lg-pace-done { color: var(--success); }
+.lg-goal-pace.lg-pace-empty { color: var(--text-tertiary); font-style: italic; }
 .lg-milestone-cb {
   width: 22px; height: 22px; flex-shrink: 0;
   appearance: none; -webkit-appearance: none;
@@ -697,6 +700,29 @@ body::after {
   .lg-goal-row { padding: 12px; }
   .lg-goal-input-wrap { margin-left: 0; }
 }
+
+/* ===== Year Roadmap ===== */
+.lg-roadmap-card { margin-bottom: 18px; }
+.lg-roadmap-title { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+.lg-roadmap-sub { font-size: 11.5px; color: var(--text-tertiary); margin-bottom: 14px; }
+.lg-roadmap-group { margin-bottom: 14px; }
+.lg-roadmap-group:last-child { margin-bottom: 0; }
+.lg-roadmap-cat { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 7px; }
+.lg-roadmap-row { padding: 10px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+.lg-roadmap-row-label { font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+.lg-roadmap-checkpoints { display: flex; flex-wrap: wrap; gap: 6px; }
+.lg-roadmap-chip { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-secondary); background: rgba(255,255,255,0.05); border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.lg-roadmap-chip.lg-roadmap-final { color: var(--text-primary); background: rgba(107,227,164,0.12); }
+.lg-roadmap-milestone-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 12px; margin-bottom: 6px; background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; }
+.lg-roadmap-milestone-row.lg-goal-done .lg-roadmap-milestone-label { color: var(--success); text-decoration: line-through; text-decoration-color: rgba(255,255,255,0.4); }
+.lg-roadmap-milestone-label { font-size: 12.5px; color: var(--text-primary); flex: 1; min-width: 0; }
+.lg-due-select {
+  flex-shrink: 0; padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 8px;
+  background: rgba(0,0,0,0.28); color: var(--text-secondary);
+  font-family: inherit; font-size: 11px; cursor: pointer;
+}
+.lg-due-select:focus { border-color: rgba(255,255,255,0.28); }
 </style>
 </head>
 <body>
@@ -806,6 +832,12 @@ body::after {
       </div>
       <div class="lg-checklist-progress" id="lgChecklistProgress">0 / 0</div>
       <ul class="lg-check-list" id="lgCheckList"></ul>
+    </div>
+
+    <div class="gm-card lg-roadmap-card">
+      <div class="lg-roadmap-title">Year Roadmap</div>
+      <div class="lg-roadmap-sub" id="lgRoadmapSub">Step-by-step checkpoints from today to Dec 31.</div>
+      <div id="lgRoadmap"></div>
     </div>
 
     <div id="lgGoalCategories"></div>
@@ -1499,6 +1531,65 @@ body::after {
   }
   function lgMonthKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1); }
 
+  // ---------- Pacing: turn a yearly target into a concrete weekly/monthly ask ----------
+  const LG_MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function lgYearEnd() {
+    const d = lgGetActiveDateObj();
+    return new Date(d.getFullYear(), 11, 31);
+  }
+  function lgFmtNum(n) {
+    const r = Math.round(n * 10) / 10;
+    return (Math.abs(r % 1) < 0.05) ? String(Math.round(r)) : r.toFixed(1);
+  }
+  // Only defined for absolute-target metric/counter goals that don't already
+  // reset on their own cadence (those already have a built-in weekly/monthly
+  // ask) and that have a current value logged. Never guesses "on track" —
+  // there's no historical trend stored, so it only ever states the pace
+  // needed from here to Dec 31.
+  function lgPaceInfo(goal) {
+    if (!goal || goal.kind === 'milestone') return null;
+    if (goal.resetsWeekly || goal.resetsMonthly) return null;
+    if (goal.current === null || goal.current === undefined) return null;
+    if (goal.target === null || goal.target === undefined) return null;
+    const now = lgGetActiveDateObj();
+    const msLeft = lgYearEnd().getTime() - now.getTime();
+    const remaining = goal.lowerIsBetter ? (goal.current - goal.target) : (goal.target - goal.current);
+    const achieved = remaining <= 0;
+    if (msLeft <= 0) return { remaining, weeksLeft: 0, perWeek: 0, perMonth: 0, achieved };
+    const weeksLeft = msLeft / (7 * 24 * 3600 * 1000);
+    const monthsLeft = weeksLeft / 4.345;
+    return {
+      remaining,
+      weeksLeft,
+      perWeek: achieved ? 0 : remaining / weeksLeft,
+      perMonth: achieved ? 0 : remaining / monthsLeft,
+      achieved
+    };
+  }
+  function lgPaceLine(goal) {
+    const p = lgPaceInfo(goal);
+    if (!p) return null;
+    const unit = goal.unit || '';
+    if (p.achieved) return { text: 'Target reached ✓', achieved: true };
+    return { text: 'Need ' + lgFmtNum(p.perWeek) + ' ' + unit + '/wk (' + lgFmtNum(p.perMonth) + ' ' + unit + '/mo) → ' + goal.target + ' ' + unit + ' by Dec 31', achieved: false };
+  }
+  // Appends a compact pace hint from the first linked goal that has one —
+  // used to turn vague checklist text ("Hit macros") into a concrete number.
+  function lgAppendPaceHint(baseText, linkIds) {
+    if (!Array.isArray(linkIds)) return baseText;
+    const goals = loadLifeGoals();
+    for (const id of linkIds) {
+      const g = lgFindGoal(goals, id);
+      if (!g) continue;
+      const p = lgPaceInfo(g);
+      if (!p) continue;
+      if (p.achieved) return baseText + ' (' + g.label + ' target reached ✓)';
+      const unit = g.unit || '';
+      return baseText + ' (' + g.label + ' ' + lgFmtNum(p.perMonth) + ' ' + unit + '/mo → ' + g.target + ' ' + unit + ')';
+    }
+    return baseText;
+  }
+
   function lgPeriodKey(period) {
     const d = lgGetActiveDateObj();
     if (period === 'daily')   return 'lgdaily:'   + dateToKey(d);
@@ -1609,6 +1700,22 @@ body::after {
           fill.style.width = Math.round(lgProgressFraction(goal) * 100) + '%';
           track.appendChild(fill);
           main.appendChild(track);
+
+          if (!goal.resetsWeekly && !goal.resetsMonthly) {
+            const pace = document.createElement('div');
+            pace.className = 'lg-goal-pace';
+            if (goal.current === null || goal.current === undefined) {
+              pace.classList.add('lg-pace-empty');
+              pace.textContent = 'Log your current value to see your pace';
+            } else {
+              const line = lgPaceLine(goal);
+              if (line) {
+                if (line.achieved) pace.classList.add('lg-pace-done');
+                pace.textContent = line.text;
+              }
+            }
+            if (pace.textContent) main.appendChild(pace);
+          }
         }
         row.appendChild(main);
 
@@ -1623,6 +1730,7 @@ body::after {
             g.done = cb.checked;
             saveLifeGoals(list);
             renderLifeGoalCategories();
+            renderLgRoadmap();
           });
           row.appendChild(cb);
         } else {
@@ -1640,6 +1748,8 @@ body::after {
             g.current = isNaN(v) ? null : v;
             saveLifeGoals(list);
             renderLifeGoalCategories();
+            renderLgRoadmap();
+            renderLgChecklist();
           });
           inputWrap.appendChild(input);
           const unit = document.createElement('span');
@@ -1719,7 +1829,7 @@ body::after {
         li.appendChild(cb);
         const text = document.createElement('span');
         text.className = 'lg-check-text';
-        text.textContent = item.text;
+        text.textContent = lgAppendPaceHint(item.text, item.link);
         li.appendChild(text);
       }
 
@@ -1746,6 +1856,7 @@ body::after {
 
     renderLgChecklist();
     renderLifeGoalCategories();
+    renderLgRoadmap();
   }
 
   document.getElementById('lgTabs').addEventListener('click', (e) => {
@@ -1756,12 +1867,109 @@ body::after {
     renderLgChecklist();
   });
 
+  // Month-end checkpoint dates from the active month through December.
+  function lgMonthEndDates() {
+    const now = lgGetActiveDateObj();
+    const year = now.getFullYear();
+    const dates = [];
+    for (let m = now.getMonth(); m <= 11; m++) dates.push(new Date(year, m + 1, 0));
+    return dates;
+  }
+
+  function renderLgRoadmap() {
+    const goals = loadLifeGoals();
+    const wrap = document.getElementById('lgRoadmap');
+    wrap.innerHTML = '';
+    const now = lgGetActiveDateObj();
+    const checkpointDates = lgMonthEndDates();
+    const totalMs = lgYearEnd().getTime() - now.getTime();
+    let rendered = false;
+
+    LG_CATEGORY_ORDER.forEach(cat => {
+      const inCat = goals.filter(g => g.category === cat);
+      const metricGoals = inCat.filter(g => g.kind !== 'milestone' && !g.resetsWeekly && !g.resetsMonthly
+        && g.current !== null && g.current !== undefined && g.target !== null && g.target !== undefined);
+      const milestoneGoals = inCat.filter(g => g.kind === 'milestone');
+      if (!metricGoals.length && !milestoneGoals.length) return;
+      rendered = true;
+
+      const group = document.createElement('div');
+      group.className = 'lg-roadmap-group';
+      const catTitle = document.createElement('div');
+      catTitle.className = 'lg-roadmap-cat';
+      catTitle.textContent = cat;
+      group.appendChild(catTitle);
+
+      metricGoals.forEach(goal => {
+        const row = document.createElement('div');
+        row.className = 'lg-roadmap-row';
+        const label = document.createElement('div');
+        label.className = 'lg-roadmap-row-label';
+        label.textContent = goal.label;
+        row.appendChild(label);
+
+        const chips = document.createElement('div');
+        chips.className = 'lg-roadmap-checkpoints';
+        if (totalMs > 0) {
+          checkpointDates.forEach((d, i) => {
+            const t = Math.min(1, Math.max(0, (d.getTime() - now.getTime()) / totalMs));
+            const val = goal.current + (goal.target - goal.current) * t;
+            const chip = document.createElement('span');
+            chip.className = 'lg-roadmap-chip' + (i === checkpointDates.length - 1 ? ' lg-roadmap-final' : '');
+            chip.textContent = LG_MONTH_NAMES[d.getMonth()] + ' ' + d.getDate() + ' → ' + lgFmtNum(val) + (goal.unit ? (' ' + goal.unit) : '');
+            chips.appendChild(chip);
+          });
+        }
+        row.appendChild(chips);
+        group.appendChild(row);
+      });
+
+      milestoneGoals.forEach(goal => {
+        const row = document.createElement('div');
+        row.className = 'lg-roadmap-milestone-row' + (goal.done ? ' lg-goal-done' : '');
+        const label = document.createElement('div');
+        label.className = 'lg-roadmap-milestone-label';
+        label.textContent = goal.label;
+        row.appendChild(label);
+
+        const sel = document.createElement('select');
+        sel.className = 'lg-due-select';
+        const monthOpts = [{ v: '', t: 'Unscheduled' }].concat(
+          LG_MONTH_NAMES.slice(now.getMonth()).map((name, i) => ({ v: String(now.getMonth() + i), t: name }))
+        );
+        monthOpts.forEach(opt => {
+          const o = document.createElement('option');
+          o.value = opt.v;
+          o.textContent = opt.t;
+          const current = (goal.dueMonth === null || goal.dueMonth === undefined) ? '' : String(goal.dueMonth);
+          if (opt.v === current) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener('change', () => {
+          const list = loadLifeGoals();
+          const g = lgFindGoal(list, goal.id);
+          g.dueMonth = sel.value === '' ? null : parseInt(sel.value, 10);
+          saveLifeGoals(list);
+        });
+        row.appendChild(sel);
+        group.appendChild(row);
+      });
+
+      wrap.appendChild(group);
+    });
+
+    if (!rendered) {
+      wrap.innerHTML = '<div class="empty-state">Log a current value on a goal below to see its year roadmap.</div>';
+    }
+  }
+
   function initLifeGoals() {
     const goals = loadLifeGoals();
     const resetHappened = lgApplyPeriodResets(goals);
     saveLifeGoals(goals);
     renderLifeGoalCategories();
     renderLgChecklist();
+    renderLgRoadmap();
     if (resetHappened) renderLifeGoalCategories();
   }
 
@@ -1779,7 +1987,7 @@ body::after {
   // Re-render when storage changes from another tab (or our bridged parent).
   window.addEventListener('storage', () => {
     loadToday(); loadTomorrow(); renderStreak();
-    renderLifeGoalCategories(); renderLgChecklist();
+    renderLifeGoalCategories(); renderLgChecklist(); renderLgRoadmap();
   });
 })();
 </script>

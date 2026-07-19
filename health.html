@@ -509,6 +509,45 @@ main {
 
 <main>
 
+  <!-- ===== Nutrition quick-link ===== -->
+  <a href="nutrition.html" class="sleep-open-btn" id="nutritionQuickLink">
+    <span class="sleep-open-icon">🥗</span>
+    <span class="sleep-open-text">
+      <span class="sleep-open-title">Nutrition</span>
+      <span class="sleep-open-sub" id="nutritionQuickSub">Open today's macros</span>
+    </span>
+    <span class="sleep-open-chevron">›</span>
+  </a>
+  <script>
+  (function () {
+    function pad2(n) { return String(n).padStart(2, '0'); }
+    function activeDateKey() {
+      const now = new Date();
+      if (now.getHours() < 6) now.setDate(now.getDate() - 1);
+      return now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
+    }
+    function loadJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+    function render() {
+      const sub = document.getElementById('nutritionQuickSub');
+      if (!sub) return;
+      const targets = loadJSON('nutrition:targets');
+      const log = loadJSON('nutrition:log:' + activeDateKey());
+      const consumed = Array.isArray(log) ? log.reduce((s, e) => s + (Number(e && e.calories) || 0), 0) : 0;
+      if (targets && targets.calories) {
+        sub.textContent = Math.round(consumed) + ' / ' + Math.round(targets.calories) + ' kcal today';
+      } else if (consumed > 0) {
+        sub.textContent = Math.round(consumed) + ' kcal logged today';
+      } else {
+        sub.textContent = 'Open today’s macros';
+      }
+    }
+    render();
+    window.addEventListener('storage', render);
+    window.addEventListener('focus', render);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+  })();
+  </script>
+
   <!-- ===== WHOOP card (full) ===== -->
   <style>
     .whoop-section { margin-bottom: 32px; }

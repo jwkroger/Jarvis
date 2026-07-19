@@ -829,6 +829,34 @@ img, video, canvas, svg { max-width: 100%; }
 }
 .po-tw-empty.hidden { display: none; }
 
+/* ----- Gamification badges (streak / PR count) ----- */
+.po-tw-badges { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 2px; }
+.po-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--text-2);
+}
+.po-badge-streak { color: var(--warn); border-color: rgba(251,191,36,0.24); background: rgba(251,191,36,0.08); }
+.po-badge-pr { color: var(--good); border-color: rgba(110,231,183,0.24); background: rgba(110,231,183,0.08); }
+
+/* ----- Celebration toast (PRs, volume milestones) ----- */
+.po-toast {
+  position: fixed; left: 50%; top: 16px; z-index: 200;
+  transform: translateX(-50%) translateY(-16px);
+  background: linear-gradient(135deg, rgba(110,231,183,0.96), rgba(110,231,183,0.78));
+  color: #06281c;
+  padding: 11px 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 800; letter-spacing: 0.01em;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: calc(100vw - 32px);
+}
+.po-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 .po-tw-past-toggle {
   width: 100%; margin-top: 10px;
   display: flex; align-items: center; justify-content: space-between;
@@ -1290,6 +1318,8 @@ img, video, canvas, svg { max-width: 100%; }
 </head>
 <body>
 
+<div class="po-toast" id="poToast"></div>
+
 <div class="po-shell">
   <button class="po-day-pill" type="button" id="dayPill" title="Tap to switch the day filter to today's split">
     <span class="po-day-date" id="dayPillDate">—</span>
@@ -1619,6 +1649,7 @@ img, video, canvas, svg { max-width: 100%; }
           </div>
           <button class="po-tw-done-btn" id="poTwDoneBtn" type="button">Mark workout done</button>
         </div>
+        <div class="po-tw-badges" id="poTwBadges"></div>
         <ul class="po-tw-list" id="poTwList"></ul>
         <div class="po-tw-empty" id="poTwEmpty">No sets logged today — log one above and it'll appear here.</div>
       </div>
@@ -2096,12 +2127,12 @@ img, video, canvas, svg { max-width: 100%; }
   }
   // Compute today's split from state.splitRotation + state.splitAnchor.
   // Returns the rotation entry name (e.g. "Push" or "Rest") AND the index.
-  function todaySplit() {
+  function todaySplit(forDate) {
     try {
       const rot = state.splitRotation;
       if (!rot || !rot.length) return { name: '—', index: 0 };
       const a = new Date(state.splitAnchor.date);
-      const t = new Date();
+      const t = forDate ? new Date(forDate) : new Date();
       a.setHours(0,0,0,0); t.setHours(0,0,0,0);
       const diffDays = Math.round((t - a) / 86400000);
       const idx = ((state.splitAnchor.index + diffDays) % rot.length + rot.length) % rot.length;
@@ -2273,6 +2304,127 @@ img, video, canvas, svg { max-width: 100%; }
   }
   let doneDays = loadDoneDays();
 
+  // ============================================================
+  // GAMIFICATION — workout streak, PR celebrations, volume milestones.
+  // All derived from data already tracked (state.logs); nothing new to
+  // enter. PR count + milestone progress persist separately from state
+  // so they survive a "Reset all" only if you want them to (they don't —
+  // reset clears LS_KEY but these live under their own keys, matching
+  // how WORKOUT_DONE_KEY already behaves).
+  // ============================================================
+  const PR_COUNT_KEY = 'po_coach_pr_count';
+  const MILESTONE_KEY = 'po_coach_milestone_idx';
+  const MILESTONES = [1000, 5000, 10000, 25000, 50000, 100000, 200000, 500000, 1000000, 2000000, 5000000, 10000000];
+
+  function loadPrCount() { try { return parseInt(localStorage.getItem(PR_COUNT_KEY), 10) || 0; } catch (e) { return 0; } }
+  function savePrCount(n) { try { localStorage.setItem(PR_COUNT_KEY, String(n)); } catch (e) {} }
+  let prCount = loadPrCount();
+
+  function loadMilestoneIdx() { try { return parseInt(localStorage.getItem(MILESTONE_KEY), 10); } catch (e) { return NaN; } }
+  function saveMilestoneIdx(i) { try { localStorage.setItem(MILESTONE_KEY, String(i)); } catch (e) {} }
+  let milestoneIdx = Number.isFinite(loadMilestoneIdx()) ? loadMilestoneIdx() : -1;
+
+  // Toast queue — a PR and a volume milestone can fire off the same log,
+  // so celebrations show one at a time instead of clobbering each other.
+  let toastQueue = [];
+  let toastBusy = false;
+  function showToast(text) {
+    toastQueue.push(text);
+    processToastQueue();
+  }
+  function processToastQueue() {
+    if (toastBusy || !toastQueue.length) return;
+    toastBusy = true;
+    const el = $('poToast');
+    el.textContent = toastQueue.shift();
+    el.classList.add('show');
+    setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => { toastBusy = false; processToastQueue(); }, 300);
+    }, 2400);
+  }
+
+  // Consecutive training days ending today (or yesterday if today hasn't
+  // been logged yet) with at least one set. Rest days (per the split
+  // rotation) don't break the streak — only a missed *scheduled* day does.
+  function computeWorkoutStreak() {
+    const all = logsByDay();
+    let streak = 0;
+    let cursor = new Date();
+    if (!(all[wtDateKey(cursor)] || []).length) cursor.setDate(cursor.getDate() - 1);
+    for (let i = 0; i < 1000; i++) {
+      const key = wtDateKey(cursor);
+      if ((all[key] || []).length) {
+        streak++;
+      } else {
+        const name = todaySplit(cursor).name;
+        if (!isRestName(name)) break;
+      }
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  function renderGamificationBadges() {
+    const wrap = $('poTwBadges');
+    if (!wrap) return;
+    const streak = computeWorkoutStreak();
+    let html = '';
+    if (streak >= 2) html += '<span class="po-badge po-badge-streak">🔥 ' + streak + ' day streak</span>';
+    if (prCount > 0) html += '<span class="po-badge po-badge-pr">🏆 ' + prCount + ' PR' + (prCount === 1 ? '' : 's') + '</span>';
+    wrap.innerHTML = html;
+  }
+
+  // Call right after a set is pushed to state.logs. priorLogs is that
+  // exercise's log array BEFORE the new set was added.
+  function checkAndCelebratePR(ex, priorLogs, newLog) {
+    if (!priorLogs.length) return; // nothing to beat on the first-ever log
+    let isPr = false, label = '';
+    if (ex.timeBased) {
+      const prevBest = Math.max.apply(null, priorLogs.map(l => l.minutes || 0));
+      isPr = (newLog.minutes || 0) > prevBest;
+      label = '🏆 New PR — ' + ex.name + ': ' + newLog.minutes + ' min';
+    } else if (ex.bw) {
+      const prevBest = Math.max.apply(null, priorLogs.map(l => l.reps));
+      isPr = newLog.reps > prevBest;
+      label = '🏆 New PR — ' + ex.name + ': ' + newLog.reps + ' reps';
+    } else {
+      const prevBest = Math.max.apply(null, priorLogs.map(l => estimate1RM(l.weight, l.reps)));
+      isPr = estimate1RM(newLog.weight, newLog.reps) > prevBest;
+      label = '🏆 New PR — ' + ex.name + ': ' + newLog.weight + unit() + ' × ' + newLog.reps;
+    }
+    if (isPr) {
+      prCount++; savePrCount(prCount);
+      showToast(label);
+      renderGamificationBadges();
+    }
+  }
+
+  // Lifetime volume across all weighted exercises (kg/lb lifted, ever).
+  // Bodyweight and time-based exercises don't contribute — no meaningful
+  // "weight lifted" number for those.
+  function lifetimeVolume() {
+    let total = 0;
+    state.exercises.forEach(ex => {
+      if (ex.bw || ex.timeBased) return;
+      (state.logs[ex.id] || []).forEach(l => { total += (l.weight || 0) * (l.reps || 0); });
+    });
+    return total;
+  }
+
+  function checkVolumeMilestone() {
+    const total = lifetimeVolume();
+    let idx = milestoneIdx;
+    for (let i = MILESTONES.length - 1; i >= 0; i--) {
+      if (total >= MILESTONES[i]) { idx = i; break; }
+    }
+    if (idx > milestoneIdx) {
+      milestoneIdx = idx;
+      saveMilestoneIdx(idx);
+      showToast('💪 ' + MILESTONES[idx].toLocaleString() + ' ' + unit() + ' lifted lifetime!');
+    }
+  }
+
   function logsByDay() {
     const byDay = {};
     state.exercises.forEach(ex => {
@@ -2355,6 +2507,8 @@ img, video, canvas, svg { max-width: 100%; }
     btn.classList.toggle('is-done', isDone);
     btn.disabled = sum.totalSets === 0 && !isDone;
     btn.style.opacity = btn.disabled ? '0.4' : '';
+
+    renderGamificationBadges();
   }
 
   function renderPastWorkouts() {
@@ -2469,9 +2623,12 @@ img, video, canvas, svg { max-width: 100%; }
       const mins = parseInt($('minutesInput').value, 10) || 0;
       if (mins <= 0) { alert('Enter a duration.'); return; }
       const arr = state.logs[ex.id] || [];
-      arr.push({ minutes: mins, date: new Date().toISOString() });
+      const priorLogs = arr.slice();
+      const newLog = { minutes: mins, date: new Date().toISOString() };
+      arr.push(newLog);
       state.logs[ex.id] = arr;
       saveState(); renderAll();
+      checkAndCelebratePR(ex, priorLogs, newLog);
       const btn = $('logBtn');
       btn.style.transition = 'transform 0.15s';
       btn.style.transform = 'scale(0.96)';
@@ -2483,9 +2640,13 @@ img, video, canvas, svg { max-width: 100%; }
     const w = ex.bw ? 0 : (parseFloat($('weightInput').value) || 0);
     if (!ex.bw && w <= 0) { alert('Enter a weight.'); return; }
     const arr = state.logs[ex.id] || [];
-    arr.push({ weight: w, reps: reps, date: new Date().toISOString() });
+    const priorLogs = arr.slice();
+    const newLog = { weight: w, reps: reps, date: new Date().toISOString() };
+    arr.push(newLog);
     state.logs[ex.id] = arr;
     saveState(); renderAll();
+    checkAndCelebratePR(ex, priorLogs, newLog);
+    if (!ex.bw) checkVolumeMilestone();
     // Strength changed → composition estimate may shift
     if (typeof wtRender === 'function') wtRender();
     // Tiny pulse on the button so the user feels the save
