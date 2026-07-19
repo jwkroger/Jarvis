@@ -191,6 +191,79 @@ body::after {
 .gm-add:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .gm-add:active { transform: translateY(0); }
 
+/* ===== Content pipeline (kanban) ===== */
+.content-toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.content-toolbar .gm-input { min-width: 140px; }
+.content-status { font-size: 11.5px; color: var(--text-tertiary); min-height: 16px; margin: 6px 2px 14px; }
+
+.content-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 900px) { .content-board { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .content-board { grid-template-columns: 1fr; } }
+
+.content-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.content-col-head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+.content-col-title { font-size: 10.5px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+.content-col-count {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+  background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 999px;
+}
+
+.content-card {
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
+}
+.content-pillar {
+  display: inline-flex; align-self: flex-start;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  padding: 3px 8px; border-radius: 999px;
+}
+.content-idea-text { font-size: 13.5px; color: var(--text-primary); line-height: 1.4; }
+.content-script {
+  width: 100%; min-height: 90px; resize: vertical;
+  padding: 9px 10px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  background: rgba(0,0,0,0.28); color: var(--text-primary);
+  font-family: inherit; font-size: 12.5px; line-height: 1.5; outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.content-script::placeholder { color: var(--text-tertiary); }
+.content-script:focus { border-color: rgba(255,255,255,0.28); background: rgba(0,0,0,0.36); }
+
+.content-checklist { display: flex; flex-direction: column; gap: 6px; }
+.content-check-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); cursor: pointer; user-select: none; }
+.content-check-row input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+.content-check-row.is-done { color: var(--text-tertiary); text-decoration: line-through; }
+
+.content-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.content-btn {
+  flex: 1; padding: 8px 10px; border-radius: 9px; border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04); color: var(--text-primary);
+  font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer;
+  transition: background 0.15s; white-space: nowrap;
+}
+.content-btn:hover { background: rgba(255,255,255,0.08); }
+.content-btn.primary {
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%); color: #0A0A0B; border-color: transparent;
+}
+.content-btn.primary:hover { filter: brightness(1.05); }
+.content-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.content-btn:disabled:hover { background: rgba(255,255,255,0.04); filter: none; }
+
+.content-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.content-icon-btn {
+  border: 0; background: transparent; color: var(--text-tertiary);
+  cursor: pointer; font-size: 15px; padding: 2px 4px; opacity: 0.6; flex-shrink: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.content-icon-btn:hover { opacity: 1; color: var(--danger); }
+.content-posted-meta { font-size: 11px; color: var(--text-tertiary); }
+
+.content-empty-col {
+  font-size: 11.5px; color: var(--text-tertiary); font-style: italic; text-align: center;
+  padding: 18px 8px; border: 1px dashed rgba(255,255,255,0.08); border-radius: 12px;
+}
+
 @media (max-width: 480px) {
   body { padding: max(20px, env(safe-area-inset-top)) 14px 50px; }
   .gm-card { padding: 16px; }
@@ -207,6 +280,58 @@ body::after {
     <div>
       <a class="back-link" href="index.html">← Jarvis</a>
       <h1 class="dash-title" style="margin-top:4px">PT</h1>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Content Pipeline</div>
+    <div class="gm-card">
+      <div class="content-toolbar">
+        <select class="gm-input" id="cPillar" style="flex:0 0 170px">
+          <option>Transformation</option>
+          <option>BFT Highlight</option>
+          <option>Online Coaching</option>
+          <option>Education / Tips</option>
+          <option>Behind the Scenes</option>
+          <option>Personal Brand</option>
+          <option>Other</option>
+        </select>
+        <input class="gm-input" id="cIdeaText" type="text" placeholder="New idea / hook…" autocomplete="off">
+        <button class="gm-add" id="cIdeaAdd" type="button">+ Idea</button>
+        <button class="content-btn primary" id="cSuggestBtn" type="button" style="flex:0 0 auto; padding:11px 16px;">✨ Suggest 5 Ideas</button>
+      </div>
+      <div class="content-status" id="cStatus"></div>
+
+      <div class="content-board">
+        <div class="content-col">
+          <div class="content-col-head">
+            <span class="content-col-title">Idea</span>
+            <span class="content-col-count" id="colIdeaCount">0</span>
+          </div>
+          <div id="colIdea"></div>
+        </div>
+        <div class="content-col">
+          <div class="content-col-head">
+            <span class="content-col-title">Scripted</span>
+            <span class="content-col-count" id="colScriptedCount">0</span>
+          </div>
+          <div id="colScripted"></div>
+        </div>
+        <div class="content-col">
+          <div class="content-col-head">
+            <span class="content-col-title">Filmed</span>
+            <span class="content-col-count" id="colFilmedCount">0</span>
+          </div>
+          <div id="colFilmed"></div>
+        </div>
+        <div class="content-col">
+          <div class="content-col-head">
+            <span class="content-col-title">Posted</span>
+            <span class="content-col-count" id="colPostedCount">0</span>
+          </div>
+          <div id="colPosted"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -394,14 +519,398 @@ body::after {
 
   dateEl.value = todayStr();
   render();
+  window.__sessionsReload = render;
 
   if (window.initCloudSync) {
     window.initCloudSync({
       appKey: 'pt',
-      syncedKeys: [STORE_KEY],
-      onApplied: render
+      syncedKeys: [STORE_KEY, 'pt:content'],
+      onApplied: function () {
+        render();
+        if (window.__contentReload) window.__contentReload();
+      }
     });
   }
+})();
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  const STORE_KEY = 'pt:content';
+  const PILLARS = ['Transformation', 'BFT Highlight', 'Online Coaching', 'Education / Tips', 'Behind the Scenes', 'Personal Brand', 'Other'];
+  const STAGES = ['idea', 'scripted', 'filmed', 'posted'];
+
+  // Paste an Anthropic API key here to enable AI idea suggestions + script drafts.
+  // Without one, the buttons fall back to a clear inline message — everything
+  // else (manual ideas, scripts, checklist, board) still works.
+  const ANTHROPIC_API_KEY = '';
+
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $('cStatus');
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+    catch (e) { return []; }
+  }
+  function save(items) { localStorage.setItem(STORE_KEY, JSON.stringify(items)); }
+  function newId() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function findById(items, id) { return items.findIndex((c) => c.id === id); }
+  function updateCard(id, mutator) {
+    const items = load();
+    const i = findById(items, id);
+    if (i < 0) return;
+    mutator(items[i]);
+    save(items);
+    render();
+  }
+  function deleteCard(id) {
+    const items = load();
+    const i = findById(items, id);
+    if (i < 0) return;
+    items.splice(i, 1);
+    save(items);
+    render();
+  }
+
+  function setStatus(msg, ttl) {
+    statusEl.textContent = msg;
+    if (ttl) setTimeout(() => { if (statusEl.textContent === msg) statusEl.textContent = ''; }, ttl);
+  }
+
+  function fmtDate(ts) {
+    return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  /* ---------- Claude API (browser-direct, same pattern as the goal Polish button) ---------- */
+  async function callClaude(prompt, maxTokens) {
+    if (!ANTHROPIC_API_KEY) {
+      const err = new Error('no-key');
+      err.noKey = true;
+      throw err;
+    }
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data && data.content && data.content[0] && data.content[0].text;
+    if (!text) throw new Error('empty response');
+    return text;
+  }
+
+  async function suggestIdeas() {
+    const items = load();
+    const existing = items.filter((c) => c.stage === 'idea').map((c) => c.idea).slice(-15);
+    const prompt = 'You are a social media strategist helping a personal trainer grow an Instagram presence. ' +
+      'They currently run in-person group training at BFT and are starting to build an online coaching offer, ' +
+      'so mix awareness content (group training energy, client wins, education) with online-coaching-pitch ideas. ' +
+      'Generate 5 short-form video content ideas (one-line hooks only, no scripts) spread across these content pillars: ' +
+      PILLARS.slice(0, 6).join(', ') + '. ' +
+      'Avoid repeating these existing ideas: ' + (existing.join(' | ') || 'none yet') + '. ' +
+      'Return ONLY a JSON array of 5 objects like {"pillar":"...","idea":"..."} using pillar values exactly from the list above. No preamble, no markdown fences.';
+
+    setStatus('Thinking…');
+    $('cSuggestBtn').disabled = true;
+    try {
+      const text = await callClaude(prompt, 800);
+      const cleaned = text.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+      const ideas = JSON.parse(cleaned);
+      const list = load();
+      ideas.forEach((x) => {
+        list.push({
+          id: newId(),
+          pillar: PILLARS.includes(x.pillar) ? x.pillar : 'Other',
+          idea: String(x.idea || '').trim(),
+          script: '',
+          stage: 'idea',
+          checklist: { edit: false, caption: false, post: false, story: false },
+          createdAt: Date.now()
+        });
+      });
+      save(list);
+      setStatus('');
+      render();
+    } catch (e) {
+      setStatus(e && e.noKey
+        ? 'Add an Anthropic API key in the code (search ANTHROPIC_API_KEY in pt.html) to enable AI suggestions.'
+        : 'Couldn\'t generate ideas — try again.', 5000);
+    } finally {
+      $('cSuggestBtn').disabled = false;
+    }
+  }
+
+  async function writeScript(card, textareaEl, btnEl) {
+    const prompt = 'Write a short-form Instagram Reel script and caption for a personal trainer\'s content idea.\n' +
+      'Idea: "' + card.idea + '"\n' +
+      'Content pillar: ' + card.pillar + '\n' +
+      'Keep the reel 30-45 seconds. Format exactly as plain text:\n' +
+      'HOOK: ...\nBEATS:\n- ...\n- ...\nCTA: ...\nCAPTION: ...\nHASHTAGS: ...\n' +
+      'No markdown, no extra commentary.';
+
+    const origLabel = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Writing…';
+    try {
+      const text = await callClaude(prompt, 700);
+      textareaEl.value = text.trim();
+      updateCard(card.id, (c) => { c.script = text.trim(); });
+    } catch (e) {
+      setStatus(e && e.noKey
+        ? 'Add an Anthropic API key in the code (search ANTHROPIC_API_KEY in pt.html) to enable AI scripts.'
+        : 'Couldn\'t write a script — try again.', 5000);
+      btnEl.disabled = false;
+      btnEl.textContent = origLabel;
+    }
+  }
+
+  /* ---------- card builders ---------- */
+  function pillarChip(pillar) {
+    const chip = document.createElement('span');
+    chip.className = 'content-pillar';
+    chip.textContent = pillar;
+    return chip;
+  }
+
+  function buildIdeaCard(card) {
+    const el = document.createElement('div');
+    el.className = 'content-card';
+
+    const idea = document.createElement('div');
+    idea.className = 'content-idea-text';
+    idea.textContent = card.idea;
+
+    const script = document.createElement('textarea');
+    script.className = 'content-script';
+    script.placeholder = 'Script draft (write your own, or use AI Script)…';
+    script.value = card.script || '';
+    script.addEventListener('blur', () => updateCard(card.id, (c) => { c.script = script.value; }));
+
+    const actions = document.createElement('div');
+    actions.className = 'content-card-actions';
+
+    const aiBtn = document.createElement('button');
+    aiBtn.className = 'content-btn';
+    aiBtn.type = 'button';
+    aiBtn.textContent = '✨ AI Script';
+    aiBtn.addEventListener('click', () => writeScript(card, script, aiBtn));
+
+    const moveBtn = document.createElement('button');
+    moveBtn.className = 'content-btn primary';
+    moveBtn.type = 'button';
+    moveBtn.textContent = 'Move to Scripted →';
+    moveBtn.disabled = !(card.script && card.script.trim());
+    script.addEventListener('input', () => { moveBtn.disabled = !script.value.trim(); });
+    moveBtn.addEventListener('click', () => updateCard(card.id, (c) => { c.script = script.value; c.stage = 'scripted'; }));
+
+    actions.append(aiBtn, moveBtn);
+
+    const foot = document.createElement('div');
+    foot.className = 'content-card-foot';
+    const del = document.createElement('button');
+    del.className = 'content-icon-btn';
+    del.type = 'button';
+    del.textContent = '×';
+    del.addEventListener('click', () => deleteCard(card.id));
+    foot.append(document.createElement('span'), del);
+
+    el.append(pillarChip(card.pillar), idea, script, actions, foot);
+    return el;
+  }
+
+  function buildScriptedCard(card) {
+    const el = document.createElement('div');
+    el.className = 'content-card';
+
+    const idea = document.createElement('div');
+    idea.className = 'content-idea-text';
+    idea.textContent = card.idea;
+
+    const script = document.createElement('textarea');
+    script.className = 'content-script';
+    script.value = card.script || '';
+    script.addEventListener('blur', () => updateCard(card.id, (c) => { c.script = script.value; }));
+
+    const actions = document.createElement('div');
+    actions.className = 'content-card-actions';
+    const back = document.createElement('button');
+    back.className = 'content-btn';
+    back.type = 'button';
+    back.textContent = '‹ Back';
+    back.addEventListener('click', () => updateCard(card.id, (c) => { c.script = script.value; c.stage = 'idea'; }));
+    const fwd = document.createElement('button');
+    fwd.className = 'content-btn primary';
+    fwd.type = 'button';
+    fwd.textContent = 'Move to Filmed →';
+    fwd.addEventListener('click', () => updateCard(card.id, (c) => { c.script = script.value; c.stage = 'filmed'; }));
+    actions.append(back, fwd);
+
+    const foot = document.createElement('div');
+    foot.className = 'content-card-foot';
+    const del = document.createElement('button');
+    del.className = 'content-icon-btn';
+    del.type = 'button';
+    del.textContent = '×';
+    del.addEventListener('click', () => deleteCard(card.id));
+    foot.append(document.createElement('span'), del);
+
+    el.append(pillarChip(card.pillar), idea, script, actions, foot);
+    return el;
+  }
+
+  function buildFilmedCard(card) {
+    const el = document.createElement('div');
+    el.className = 'content-card';
+
+    const idea = document.createElement('div');
+    idea.className = 'content-idea-text';
+    idea.textContent = card.idea;
+
+    const checklist = document.createElement('div');
+    checklist.className = 'content-checklist';
+    const items = [['edit', 'Edit'], ['caption', 'Caption'], ['post', 'Post'], ['story', 'Repost to Story']];
+    const cb = {};
+    items.forEach(([key, label]) => {
+      const row = document.createElement('label');
+      row.className = 'content-check-row' + (card.checklist[key] ? ' is-done' : '');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!card.checklist[key];
+      cb[key] = input;
+      input.addEventListener('change', () => {
+        row.classList.toggle('is-done', input.checked);
+        updateReadyState();
+        updateCard(card.id, (c) => { c.checklist[key] = input.checked; });
+      });
+      const span = document.createElement('span');
+      span.textContent = label;
+      row.append(input, span);
+      checklist.appendChild(row);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'content-card-actions';
+    const back = document.createElement('button');
+    back.className = 'content-btn';
+    back.type = 'button';
+    back.textContent = '‹ Back';
+    back.addEventListener('click', () => updateCard(card.id, (c) => { c.stage = 'scripted'; }));
+    const fwd = document.createElement('button');
+    fwd.className = 'content-btn primary';
+    fwd.type = 'button';
+    fwd.textContent = 'Mark Posted →';
+    function updateReadyState() {
+      fwd.disabled = !(cb.edit.checked && cb.caption.checked && cb.post.checked);
+    }
+    updateReadyState();
+    fwd.addEventListener('click', () => updateCard(card.id, (c) => { c.stage = 'posted'; c.postedAt = Date.now(); }));
+    actions.append(back, fwd);
+
+    const foot = document.createElement('div');
+    foot.className = 'content-card-foot';
+    const del = document.createElement('button');
+    del.className = 'content-icon-btn';
+    del.type = 'button';
+    del.textContent = '×';
+    del.addEventListener('click', () => deleteCard(card.id));
+    foot.append(document.createElement('span'), del);
+
+    el.append(pillarChip(card.pillar), idea, checklist, actions, foot);
+    return el;
+  }
+
+  function buildPostedCard(card) {
+    const el = document.createElement('div');
+    el.className = 'content-card';
+
+    const idea = document.createElement('div');
+    idea.className = 'content-idea-text';
+    idea.textContent = card.idea;
+
+    const foot = document.createElement('div');
+    foot.className = 'content-card-foot';
+    const meta = document.createElement('span');
+    meta.className = 'content-posted-meta';
+    meta.textContent = 'Posted ' + (card.postedAt ? fmtDate(card.postedAt) : '');
+
+    const btnWrap = document.createElement('div');
+    btnWrap.style.display = 'flex';
+    btnWrap.style.gap = '6px';
+    const reopen = document.createElement('button');
+    reopen.className = 'content-icon-btn';
+    reopen.type = 'button';
+    reopen.title = 'Reopen';
+    reopen.textContent = '↺';
+    reopen.addEventListener('click', () => updateCard(card.id, (c) => { c.stage = 'filmed'; }));
+    const del = document.createElement('button');
+    del.className = 'content-icon-btn';
+    del.type = 'button';
+    del.textContent = '×';
+    del.addEventListener('click', () => deleteCard(card.id));
+    btnWrap.append(reopen, del);
+
+    foot.append(meta, btnWrap);
+    el.append(pillarChip(card.pillar), idea, foot);
+    return el;
+  }
+
+  const BUILDERS = { idea: buildIdeaCard, scripted: buildScriptedCard, filmed: buildFilmedCard, posted: buildPostedCard };
+
+  function render() {
+    const items = load();
+    STAGES.forEach((stage) => {
+      const colEl = $('col' + stage.charAt(0).toUpperCase() + stage.slice(1));
+      const countEl = $('col' + stage.charAt(0).toUpperCase() + stage.slice(1) + 'Count');
+      const cards = items.filter((c) => c.stage === stage).sort((a, b) => a.createdAt - b.createdAt);
+      countEl.textContent = String(cards.length);
+      colEl.innerHTML = '';
+      if (cards.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'content-empty-col';
+        empty.textContent = stage === 'idea' ? 'No ideas yet' : 'Nothing here yet';
+        colEl.appendChild(empty);
+        return;
+      }
+      cards.forEach((card) => colEl.appendChild(BUILDERS[card.stage](card)));
+    });
+  }
+
+  function addIdea() {
+    const textEl = $('cIdeaText');
+    const text = textEl.value.trim();
+    if (!text) return;
+    const items = load();
+    items.push({
+      id: newId(),
+      pillar: $('cPillar').value,
+      idea: text,
+      script: '',
+      stage: 'idea',
+      checklist: { edit: false, caption: false, post: false, story: false },
+      createdAt: Date.now()
+    });
+    save(items);
+    textEl.value = '';
+    render();
+  }
+  $('cIdeaAdd').addEventListener('click', addIdea);
+  $('cIdeaText').addEventListener('keydown', (e) => { if (e.key === 'Enter') addIdea(); });
+  $('cSuggestBtn').addEventListener('click', suggestIdeas);
+
+  render();
+  window.__contentReload = render;
 })();
 </script>
 </body>

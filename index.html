@@ -229,6 +229,41 @@ body::after {
   overflow: hidden;
 }
 
+/* ===== Jarvis voice widget ===== */
+.jv-card { margin-bottom: 18px; }
+.jv-row { display: flex; align-items: center; gap: 16px; }
+.jv-orb {
+  --s: 54px; width: var(--s); height: var(--s); flex-shrink: 0; position: relative;
+  border: 0; border-radius: 50%; cursor: pointer; background: transparent; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.jv-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent, #7DD3FC, transparent 55%, #6BE3A4, transparent);
+  -webkit-mask: radial-gradient(closest-side, transparent 58%, #000 60%);
+  mask: radial-gradient(closest-side, transparent 58%, #000 60%);
+  animation: jv-spin 6s linear infinite;
+  opacity: 0.85;
+}
+.jv-core {
+  position: absolute; inset: 18%; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #7DD3FC 55%, #1f8f66);
+  box-shadow: 0 0 16px rgba(125,211,252,0.55);
+  transition: box-shadow 0.2s;
+}
+.jv-orb[data-state="attention"] .jv-ring { animation-duration: 2.6s; opacity: 1; }
+.jv-orb[data-state="attention"] .jv-core { box-shadow: 0 0 22px rgba(125,211,252,0.9); animation: jv-pulse 1.6s ease-in-out infinite; }
+.jv-orb[data-state="listening"] .jv-ring { animation-duration: 1.2s; }
+.jv-orb[data-state="listening"] .jv-core { animation: jv-pulse 0.8s ease-in-out infinite; box-shadow: 0 0 24px rgba(107,227,164,0.85); }
+.jv-orb[data-state="think"] .jv-ring { animation-duration: 0.8s; }
+.jv-orb[data-state="speak"] .jv-core { animation: jv-pulse 0.5s ease-in-out infinite; }
+@keyframes jv-spin { to { transform: rotate(360deg); } }
+@keyframes jv-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.16); } }
+.jv-body { flex: 1; min-width: 0; }
+.jv-line { color: var(--text-primary); font-size: 14.5px; line-height: 1.5; }
+.jv-hint { color: var(--text-tertiary); font-size: 11.5px; margin-top: 4px; display: none; }
+.jv-hint.show { display: block; }
+
 .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-bottom: 18px; }
 .week-day {
   display: flex; flex-direction: column; align-items: center; gap: 6px;
@@ -339,6 +374,22 @@ body::after {
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
       </svg>
     </button>
+  </div>
+
+  <div class="section" id="jarvisSection">
+    <div class="section-title">Jarvis</div>
+    <div class="gm-card jv-card">
+      <div class="jv-row">
+        <button class="jv-orb" id="jvOrb" type="button" data-state="idle" aria-label="Talk to Jarvis">
+          <span class="jv-ring"></span>
+          <span class="jv-core"></span>
+        </button>
+        <div class="jv-body">
+          <div class="jv-line" id="jvLine">Tap the orb to hear your briefing, or talk to me anytime.</div>
+          <div class="jv-hint" id="jvHint"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="section">
@@ -958,7 +1009,7 @@ body::after {
   if (window.initCloudSync) {
     window.initCloudSync({
       appKey: 'goals',
-      syncedPrefixes: ['goals:'],
+      syncedPrefixes: ['goals:', 'lifegoals_v1', 'lifegoals_period_meta_v1', 'lgdaily:', 'lgweekly:', 'lgmonthly:'],
       onApplied: renderAll
     });
     window.initCloudSync({
@@ -973,6 +1024,154 @@ body::after {
       onApplied: renderAll
     });
   }
+})();
+</script>
+
+<script>
+(function(){
+  const orb = document.getElementById('jvOrb');
+  const jvLine = document.getElementById('jvLine');
+  const jvHint = document.getElementById('jvHint');
+  if (!orb) return;
+
+  const GREET_KEY = 'jarvis:lastGreetDate';
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let voicesCache = [];
+  let lastSpokenText = '';
+  let busy = false;
+
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function alreadyGreetedToday(){ try { return localStorage.getItem(GREET_KEY) === todayStr(); } catch(e){ return false; } }
+  function markGreetedToday(){ try { localStorage.setItem(GREET_KEY, todayStr()); } catch(e){} }
+
+  function setState(s){ orb.dataset.state = s; }
+  function showHint(msg){ jvHint.textContent = msg; jvHint.classList.add('show'); }
+  function clearHint(){ jvHint.classList.remove('show'); }
+
+  // ---- gather everything the dashboard has saved, so Jarvis can ground its answers ----
+  function dashboardData(){
+    const out = {};
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k === GREET_KEY) continue;
+      try { out[k] = JSON.parse(localStorage.getItem(k)); } catch(e){ out[k] = localStorage.getItem(k); }
+    }
+    return out;
+  }
+
+  // ---- text-to-speech ----
+  function loadVoices(){ voicesCache = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : []; }
+  loadVoices();
+  if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = loadVoices;
+
+  function pickVoice(){
+    if (!voicesCache.length) return null;
+    const prefs = ['Daniel', 'Google UK English Male', 'Microsoft David', 'Microsoft Guy', 'Alex', 'Fred'];
+    for (const name of prefs) {
+      const v = voicesCache.find(v => v.name.includes(name));
+      if (v) return v;
+    }
+    const en = voicesCache.filter(v => /^en/i.test(v.lang));
+    return en[0] || voicesCache[0] || null;
+  }
+
+  function speak(text){
+    lastSpokenText = text;
+    jvLine.textContent = text;
+    if (!('speechSynthesis' in window)) { setState('idle'); showHint('This browser can’t play speech — replies will show as text.'); return; }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0; u.pitch = 0.9;
+    const voice = pickVoice();
+    if (voice) u.voice = voice;
+    u.onstart = () => setState('speak');
+    u.onend = () => { setState('idle'); busy = false; };
+    u.onerror = () => { setState('idle'); busy = false; };
+    window.speechSynthesis.speak(u);
+  }
+
+  // ---- ask the Jarvis backend (Claude, grounded in dashboard data) ----
+  async function askJarvis(userText){
+    clearHint();
+    try {
+      const res = await fetch('/api/jarvis', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ messages: [{ role: 'user', content: userText }], dashboard: dashboardData() }),
+      });
+      const json = await res.json();
+      if (json.error) {
+        setState('idle'); busy = false;
+        jvLine.textContent = 'Something went wrong.';
+        showHint(json.error);
+        return null;
+      }
+      speak(json.text);
+      return json.text;
+    } catch(e) {
+      setState('idle'); busy = false;
+      jvLine.textContent = 'I couldn’t reach the server just now.';
+      return null;
+    }
+  }
+
+  function fetchBriefing(){
+    if (busy) return;
+    busy = true;
+    setState('think');
+    jvLine.textContent = 'Pulling your rundown together…';
+    askJarvis(
+      "Give me my morning briefing — a short, natural spoken rundown of what matters today " +
+      "across my goals, health, fitness, water, and finances, based on my dashboard data. If an " +
+      "area has nothing notable, skip it rather than padding the answer out."
+    ).then(() => markGreetedToday());
+  }
+
+  // ---- voice input (push-to-talk) ----
+  function startListening(){
+    if (!SR) { showHint('Voice input needs Chrome or Edge on this device.'); return; }
+    if (busy) return;
+    busy = true;
+    const rec = new SR();
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    setState('listening');
+    jvLine.textContent = 'Listening…';
+    rec.onresult = (e) => {
+      const said = e.results[0][0].transcript;
+      jvLine.textContent = said;
+      setState('think');
+      askJarvis(said);
+    };
+    rec.onerror = () => { setState('idle'); busy = false; jvLine.textContent = 'Didn’t catch that — tap to try again.'; };
+    rec.onend = () => { if (orb.dataset.state === 'listening') { setState('idle'); busy = false; } };
+    try { rec.start(); } catch(e) { setState('idle'); busy = false; }
+  }
+
+  orb.addEventListener('click', () => {
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      setState('idle'); busy = false;
+      return;
+    }
+    if (busy) return;
+    if (!alreadyGreetedToday()) { fetchBriefing(); return; }
+    if (SR) { startListening(); return; }
+    if (lastSpokenText) { speak(lastSpokenText); return; }
+    fetchBriefing();
+  });
+
+  // ---- boot: greet once per day, otherwise sit idle and ready ----
+  if (!alreadyGreetedToday()) {
+    setState('attention');
+    jvLine.textContent = 'Tap for your morning briefing.';
+    setTimeout(fetchBriefing, 800); // best-effort auto-speak; falls back to the tap above if the browser blocks it
+  } else {
+    setState('idle');
+  }
+  if (!SR) showHint('Voice replies work here — voice input needs Chrome or Edge.');
 })();
 </script>
 </body>
