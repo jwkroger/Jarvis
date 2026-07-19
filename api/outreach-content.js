@@ -66,9 +66,11 @@ export default async function handler(req, res) {
 
   try {
     const text = await callClaude(apiKey, prompt, maxTokens);
-    const cleaned = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start === -1 || end === -1 || end < start) throw new Error('no JSON object found in response');
     let data;
-    try { data = JSON.parse(cleaned); } catch (e) { throw new Error('could not parse response from the model'); }
+    try { data = JSON.parse(text.slice(start, end + 1)); } catch (e) { throw new Error('could not parse response from the model'); }
     return res.status(200).json(data);
   } catch (e) {
     return res.status(500).json({ error: 'outreach content failed: ' + (e && e.message ? e.message : String(e)) });

@@ -36,17 +36,33 @@ export default async function handler(req, res) {
     'incidents, expansions, new facilities, leadership changes, regulatory news, sustainability initiatives. Only ' +
     'include real items found via search; do not invent news. If nothing recent turns up, return an empty array.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
-    '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}';
+    '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
+    'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
+    'sentence before or after it.';
 
   try {
-    const text = await callClaudeWithSearch(apiKey, prompt, 1800);
-    const cleaned = text.replace(/^```(json)?/i, '').replace(/```$/, '').trim();
+    const content = await callClaudeWithSearch(apiKey, prompt, 2500);
+    const jsonStr = extractLastJson(content);
     let data;
-    try { data = JSON.parse(cleaned); } catch (e) { throw new Error('could not parse research from the model'); }
+    try { data = JSON.parse(jsonStr); } catch (e) { throw new Error('could not parse research from the model'); }
     return res.status(200).json(data);
   } catch (e) {
     return res.status(500).json({ error: 'company research failed: ' + (e && e.message ? e.message : String(e)) });
   }
+}
+
+// Claude may narrate its search process in earlier text blocks (or, rarely,
+// wrap the final JSON in a stray sentence). Take only the LAST text block —
+// the actual final answer — and slice out the {...} substring from it so a
+// wrapping sentence or markdown fence can't break JSON.parse.
+function extractLastJson(content) {
+  const textBlocks = (content || []).filter((b) => b && b.type === 'text' && b.text);
+  if (!textBlocks.length) throw new Error('empty response');
+  const raw = textBlocks[textBlocks.length - 1].text;
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start === -1 || end === -1 || end < start) throw new Error('no JSON object found in response');
+  return raw.slice(start, end + 1);
 }
 
 async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
@@ -77,10 +93,8 @@ async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
       messages.push({ role: 'assistant', content: data.content });
       continue;
     }
-    const text = (data.content || [])
-      .filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
-    if (!text) throw new Error('empty response');
-    return text;
+    if (!data.content || !data.content.length) throw new Error('empty response');
+    return data.content;
   }
   throw new Error('research did not finish after several search rounds — try again');
 }
