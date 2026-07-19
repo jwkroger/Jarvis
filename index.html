@@ -1127,7 +1127,7 @@ body::after {
       "Give me my morning briefing — a short, natural spoken rundown of what matters today " +
       "across my goals, health, fitness, water, and finances, based on my dashboard data. If an " +
       "area has nothing notable, skip it rather than padding the answer out."
-    ).then(() => markGreetedToday());
+    ).then((text) => { if (text) markGreetedToday(); });
   }
 
   // ---- voice input (push-to-talk) ----
