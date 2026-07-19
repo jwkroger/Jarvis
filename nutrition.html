@@ -278,11 +278,145 @@ main {
 }
 .nutri-log-del:hover { color: var(--danger); opacity: 1; }
 
+/* ===== Hydration (ported from the former standalone Water Coach page) ===== */
+.wc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.wc-unit-label { font-size: 10px; letter-spacing: 0.20em; font-weight: 700; color: var(--text-tertiary); text-transform: uppercase; }
+.wc-icon-btn {
+  width: 34px; height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border-strong);
+  border-radius: 9px; color: var(--text-secondary); cursor: pointer;
+  transition: background 0.18s, color 0.18s;
+}
+.wc-icon-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary); }
+.wc-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+.wc-num { font-size: 48px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.wc-target { font-size: 16px; color: var(--text-tertiary); font-weight: 500; }
+.wc-bar-wrap { position: relative; margin: 12px 0 18px; }
+.wc-bar-track { position: relative; height: 26px; border-radius: 13px; background: rgba(255,255,255,0.05); overflow: hidden; }
+.wc-bar-fill {
+  position: absolute; top: 0; bottom: 0; left: 0; border-radius: 13px;
+  background: linear-gradient(90deg, var(--carbs), var(--success));
+  transition: width 0.4s ease; box-shadow: 0 0 16px rgba(107,227,164,0.18);
+}
+.wc-bar-fill.over { background: linear-gradient(90deg, var(--success), var(--fat)); }
+.wc-bar-zone { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.18); }
+.wc-bar-labels { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.wc-bar-labels .wc-zone-name { color: var(--success); font-weight: 700; letter-spacing: 0.10em; text-transform: lowercase; }
+.wc-actions { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: stretch; }
+.wc-minus-btn {
+  background: rgba(255,255,255,0.06); border: none; border-radius: 14px; color: var(--text-primary);
+  font-size: 20px; font-weight: 700; cursor: pointer;
+}
+.wc-minus-btn:hover { background: rgba(255,255,255,0.10); }
+.wc-minus-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.wc-plus-btn {
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%); color: #0A0A0B; border: none; border-radius: 14px;
+  font-family: inherit; font-size: 14.5px; font-weight: 700; cursor: pointer; padding: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 14px rgba(0,0,0,0.35);
+  transition: transform 0.1s;
+}
+.wc-plus-btn:active { transform: scale(0.98); }
+.wc-helper { text-align: center; font-size: 12px; color: var(--text-tertiary); margin-top: 10px; font-style: italic; }
+.wc-helper.good { color: var(--success); font-style: normal; }
+.wc-why-toggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  background: transparent; border: 1px solid var(--border-strong); color: var(--text-secondary); border-radius: 10px;
+  padding: 10px 13px; cursor: pointer; margin-top: 14px; font-family: inherit; font-size: 12px; font-weight: 600;
+}
+.wc-why-toggle:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+.wc-why-arrow { transition: transform 0.2s; font-size: 13px; }
+.wc-why-toggle[aria-expanded="true"] .wc-why-arrow { transform: rotate(180deg); }
+.wc-why-body { margin-top: 8px; padding: 12px 14px; background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: 10px; display: none; }
+.wc-why-body.show { display: block; }
+.wc-why-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 12.5px; padding: 3px 0; font-variant-numeric: tabular-nums; }
+.wc-why-row .wc-why-label { color: var(--text-secondary); }
+.wc-why-row .wc-why-val { color: var(--text-primary); font-weight: 600; font-family: var(--font-mono); }
+.wc-why-row.total { border-top: 1px solid var(--border); margin-top: 7px; padding-top: 9px; }
+.wc-why-row.total .wc-why-label, .wc-why-row.total .wc-why-val { color: var(--success); font-weight: 700; }
+.wc-hist-row { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; padding: 9px 0; align-items: center; border-bottom: 1px solid var(--border); font-size: 12.5px; }
+.wc-hist-row:last-child { border-bottom: none; }
+.wc-hist-date { font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.wc-hist-bar-wrap { height: 7px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+.wc-hist-bar-fill { height: 100%; background: linear-gradient(90deg, var(--carbs), var(--success)); border-radius: 4px; }
+.wc-hist-bar-fill.miss { background: rgba(255,138,138,0.4); }
+.wc-hist-count { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.wc-spark-wrap { padding: 4px 0 0; }
+.wc-spark-svg { width: 100%; height: 60px; display: block; }
+.wc-spark-bar { fill: var(--success); }
+.wc-spark-bar.miss { fill: rgba(255,138,138,0.5); }
+.wc-spark-target { stroke: rgba(255,255,255,0.20); stroke-width: 1; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+
+/* Hydration settings modal */
+.wc-modal-bg {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px); z-index: 130; align-items: center; justify-content: center; padding: 20px;
+}
+.wc-modal-bg.show { display: flex; }
+.wc-modal { width: 100%; max-width: 480px; background: #0e0e10; border: 1px solid var(--border-strong); border-radius: 16px; padding: 22px; max-height: 88vh; overflow-y: auto; }
+.wc-modal h3 { margin: 0 0 14px; font-size: 17px; font-weight: 700; color: var(--text-primary); }
+.wc-set-section { margin-bottom: 20px; }
+.wc-set-section h4 { margin: 0 0 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-tertiary); }
+.wc-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.wc-field label { font-size: 11px; color: var(--text-tertiary); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.wc-field input[type="number"], .wc-field input[type="text"] {
+  background: var(--bg-input); border: 1px solid var(--border-strong); color: var(--text-primary);
+  font-family: inherit; font-size: 13.5px; padding: 9px 11px; border-radius: 9px; outline: none;
+}
+.wc-field input:focus { border-color: rgba(107,227,164,0.45); }
+.wc-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.wc-seg { display: flex; gap: 4px; background: rgba(255,255,255,0.04); border: 1px solid var(--border-strong); border-radius: 10px; padding: 3px; }
+.wc-seg button {
+  flex: 1; padding: 8px; border: none; background: transparent; color: var(--text-tertiary);
+  border-radius: 7px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.wc-seg button.active { background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%); color: #0A0A0B; }
+.wc-search-wrap { position: relative; }
+.wc-search-input {
+  width: 100%; background: var(--bg-input); border: 1px solid var(--border-strong); color: var(--text-primary);
+  font-family: inherit; font-size: 13.5px; padding: 10px 13px; border-radius: 9px; outline: none;
+}
+.wc-search-input:focus { border-color: rgba(107,227,164,0.45); }
+.wc-search-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #16161a;
+  border: 1px solid var(--border-strong); border-radius: 10px; padding: 4px; max-height: 220px; overflow-y: auto; z-index: 5; display: none;
+}
+.wc-search-results.show { display: block; }
+.wc-search-result { display: flex; flex-direction: column; gap: 2px; padding: 8px 11px; border-radius: 7px; cursor: pointer; font-size: 12.5px; }
+.wc-search-result:hover { background: rgba(255,255,255,0.05); }
+.wc-search-result-name { color: var(--text-primary); font-weight: 600; }
+.wc-search-result-meta { font-size: 10.5px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.wc-search-result-add { color: var(--success); }
+.wc-subs-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.wc-sub-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: 10px; flex-wrap: wrap; }
+.wc-sub-row-info { flex: 1; min-width: 140px; }
+.wc-sub-row-name { font-size: 12.5px; font-weight: 600; color: var(--text-primary); }
+.wc-sub-row-meta { font-size: 10.5px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; font-family: var(--font-mono); margin-top: 2px; }
+.wc-sub-row-dose { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.30); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
+.wc-sub-dose-input { width: 52px; background: transparent; border: none; outline: none; color: var(--text-primary); font-family: inherit; font-size: 12.5px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+.wc-sub-dose-unit { font-size: 10.5px; color: var(--text-tertiary); font-family: var(--font-mono); white-space: nowrap; }
+.wc-sub-row-del { background: transparent; border: none; color: var(--text-quaternary); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+.wc-sub-row-del:hover { color: var(--danger); }
+.wc-btn-primary {
+  width: 100%; padding: 12px; border: none; background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%);
+  color: #0A0A0B; border-radius: 11px; font-family: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 4px 14px rgba(0,0,0,0.35);
+}
+.wc-btn-secondary {
+  padding: 10px 15px; border: 1px solid var(--border-strong); background: rgba(255,255,255,0.04);
+  color: var(--text-primary); border-radius: 9px; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.wc-btn-secondary:hover { background: rgba(255,255,255,0.10); }
+.wc-modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+.wc-modal-actions .wc-btn-primary { flex: 1; }
+
 @media (max-width: 600px) {
   main { padding: 40px 16px 60px; }
   .gm-card { padding: 16px; }
   .rcpt-confirm-top { flex-direction: column; }
   .rcpt-fields { grid-template-columns: 1fr 1fr; }
+  .wc-num { font-size: 40px; }
 }
 </style>
 </head>
@@ -339,6 +473,55 @@ main {
           <div class="nutri-macro-track"><div class="nutri-macro-fill nutri-fat" id="fatFill"></div></div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="section" id="hydrationSection">
+    <div class="section-title">Hydration</div>
+    <div class="gm-card">
+      <div class="wc-head">
+        <div class="wc-unit-label" id="wcUnitLabel">BOTTLES DRANK TODAY</div>
+        <button class="wc-icon-btn" id="wcSettingsBtn" type="button" title="Hydration settings" aria-label="Hydration settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+      <div class="wc-row">
+        <span class="wc-num" id="wcNum">0</span>
+        <span class="wc-target" id="wcTarget">/ 9</span>
+      </div>
+
+      <div class="wc-bar-wrap">
+        <div class="wc-bar-track">
+          <div class="wc-bar-fill" id="wcBarFill" style="width:0%"></div>
+          <div class="wc-bar-zone" id="wcBarZoneStart" style="left:55%"></div>
+          <div class="wc-bar-zone" id="wcBarZoneEnd" style="left:80%"></div>
+        </div>
+        <div class="wc-bar-labels">
+          <span id="wcBarMin">0</span>
+          <span class="wc-zone-name">healthy zone</span>
+          <span id="wcBarMax">12+</span>
+        </div>
+      </div>
+
+      <div class="wc-actions">
+        <button class="wc-minus-btn" id="wcMinusBtn" type="button" aria-label="Undo last">−</button>
+        <button class="wc-plus-btn" id="wcPlusBtn" type="button">
+          <span id="wcPlusLabel">Drank a bottle</span>
+          <span>↑</span>
+        </button>
+      </div>
+      <div class="wc-helper" id="wcHelper">Start the day — first one in.</div>
+
+      <button class="wc-why-toggle" id="wcWhyToggle" type="button" aria-expanded="false">
+        <span>Why this target?</span>
+        <span class="wc-why-arrow">▾</span>
+      </button>
+      <div class="wc-why-body" id="wcWhyBody"></div>
+
+      <div class="wc-spark-wrap">
+        <svg class="wc-spark-svg" id="wcSparkSvg" viewBox="0 0 280 60" preserveAspectRatio="none"></svg>
+      </div>
+      <div id="wcHistList" style="margin-top:12px"></div>
     </div>
   </div>
 
@@ -426,6 +609,113 @@ main {
     </div>
   </div>
 </main>
+
+<!-- Hydration settings — ported from the former standalone Water Coach page -->
+<div class="wc-modal-bg" id="wcSetModalBg">
+  <div class="wc-modal">
+    <h3>Hydration Settings</h3>
+
+    <div class="wc-set-section">
+      <h4>Profile</h4>
+      <div class="wc-field-row">
+        <div class="wc-field">
+          <label>Weight</label>
+          <input type="number" id="wcSetWeight" step="0.5" min="20" max="300">
+        </div>
+        <div class="wc-field">
+          <label>Weight unit</label>
+          <div class="wc-seg" id="wcSetWeightUnit">
+            <button type="button" data-u="kg">kg</button>
+            <button type="button" data-u="lb">lb</button>
+          </div>
+        </div>
+      </div>
+      <div class="wc-field-row">
+        <div class="wc-field">
+          <label>Age</label>
+          <input type="number" id="wcSetAge" min="13" max="100">
+        </div>
+        <div class="wc-field">
+          <label>Sex</label>
+          <div class="wc-seg" id="wcSetSex">
+            <button type="button" data-s="m">Male</button>
+            <button type="button" data-s="f">Female</button>
+            <button type="button" data-s="o">Other</button>
+          </div>
+        </div>
+      </div>
+      <div class="wc-field">
+        <label>Activity (training hours per week)</label>
+        <input type="number" id="wcSetActivity" min="0" max="40" step="0.5">
+      </div>
+    </div>
+
+    <div class="wc-set-section">
+      <h4>Display</h4>
+      <div class="wc-field">
+        <label>Show water as</label>
+        <div class="wc-seg" id="wcSetUnit">
+          <button type="button" data-u="bottle">Bottles</button>
+          <button type="button" data-u="glass">Glasses</button>
+          <button type="button" data-u="oz">oz</button>
+          <button type="button" data-u="ml">ml</button>
+        </div>
+      </div>
+      <div class="wc-field-row">
+        <div class="wc-field">
+          <label>Bottle size (ml)</label>
+          <input type="number" id="wcSetBottleMl" min="100" max="2000" step="50">
+        </div>
+        <div class="wc-field">
+          <label>Glass size (ml)</label>
+          <input type="number" id="wcSetGlassMl" min="100" max="500" step="10">
+        </div>
+      </div>
+    </div>
+
+    <div class="wc-set-section">
+      <h4>Caffeine</h4>
+      <div class="wc-field">
+        <label>Average caffeine per day (mg)</label>
+        <input type="number" id="wcSetCaffeine" min="0" max="1000" step="10">
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;line-height:1.4">
+          ~1 cup of coffee = 95mg · espresso shot = 75mg · energy drink = 160mg.
+          Above 200mg/day starts to add a small water requirement.
+        </div>
+      </div>
+    </div>
+
+    <div class="wc-set-section">
+      <h4>Stimulants &amp; meds</h4>
+      <div class="wc-field">
+        <label>Search to add</label>
+        <div class="wc-search-wrap">
+          <input type="text" class="wc-search-input" id="wcSubSearch" placeholder="Type a name (Adderall, Concerta, Lithium…)" autocomplete="off">
+          <div class="wc-search-results" id="wcSubResults"></div>
+        </div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;line-height:1.4">
+          Each substance bumps your daily water target. Includes ADHD stims,
+          diuretics, decongestants, nicotine, alcohol, and a few others.
+        </div>
+      </div>
+      <div class="wc-subs-list" id="wcSubsList"></div>
+    </div>
+
+    <div class="wc-set-section">
+      <h4>Data</h4>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="wc-btn-secondary" id="wcSetExport" type="button">Export JSON</button>
+        <button class="wc-btn-secondary" id="wcSetImport" type="button">Import JSON</button>
+        <button class="wc-btn-secondary" id="wcSetReset" type="button" style="color:var(--danger);border-color:rgba(255,138,138,0.3)">Reset all</button>
+      </div>
+      <input type="file" id="wcSetImportFile" accept=".json" style="display:none">
+    </div>
+
+    <div class="wc-modal-actions">
+      <button class="wc-btn-primary" id="wcSetClose" type="button">Done</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -841,6 +1131,393 @@ main {
     discardBtn.addEventListener('click', reset);
   })();
 
+  // ============================================================
+  // HYDRATION — ported from the former standalone "Water Coach" page
+  // (po-water.html). Same localStorage key (po_water_v1) and same
+  // Supabase sync ownership (appKey 'health'), so existing data and
+  // cross-device sync keep working unchanged; only the UI moved.
+  // ============================================================
+  let renderHydration = function () {};
+  (function initHydration() {
+    const $ = (id) => document.getElementById(id);
+    const LS_KEY = 'po_water_v1';
+
+    // Daily water bumps scale with YOUR dose: dose x mlPerUnit.
+    // e.g. 36mg Concerta -> 36 x 13.9 ~= 500ml.
+    const SUBSTANCE_DB = [
+      { id: 'adderall',    name: 'Adderall (mixed amphetamine salts)', cat: 'ADHD stim',    unit: 'mg',           defaultDose: 20,   mlPerUnit: 25,    note: 'Stim · reduces thirst signal · dries you out' },
+      { id: 'concerta',    name: 'Concerta (methylphenidate ER)',      cat: 'ADHD stim',    unit: 'mg',           defaultDose: 36,   mlPerUnit: 13.9,  note: 'Stim · reduces thirst signal' },
+      { id: 'vyvanse',     name: 'Vyvanse (lisdexamfetamine)',         cat: 'ADHD stim',    unit: 'mg',           defaultDose: 50,   mlPerUnit: 10,    note: 'Stim prodrug · long acting' },
+      { id: 'ritalin',     name: 'Ritalin IR (methylphenidate)',       cat: 'ADHD stim',    unit: 'mg',           defaultDose: 20,   mlPerUnit: 20,    note: 'Short-acting stim' },
+      { id: 'focalin',     name: 'Focalin / Focalin XR',               cat: 'ADHD stim',    unit: 'mg',           defaultDose: 20,   mlPerUnit: 20,    note: 'Methylphenidate isomer' },
+      { id: 'modafinil',   name: 'Modafinil',                          cat: 'Wakefulness',  unit: 'mg',           defaultDose: 200,  mlPerUnit: 1.75,  note: 'Mild dehydrating effect' },
+      { id: 'lithium',     name: 'Lithium',                            cat: 'Mood',         unit: 'mg',           defaultDose: 600,  mlPerUnit: 1.67,  note: 'Critical — narrow therapeutic window, dehydration → toxicity' },
+      { id: 'hctz',        name: 'Hydrochlorothiazide (HCTZ)',         cat: 'Diuretic',     unit: 'mg',           defaultDose: 25,   mlPerUnit: 40,    note: 'Direct diuretic — drink to compensate' },
+      { id: 'lasix',       name: 'Furosemide (Lasix)',                 cat: 'Diuretic',     unit: 'mg',           defaultDose: 40,   mlPerUnit: 30,    note: 'Loop diuretic · talk to your doctor about target' },
+      { id: 'spironol',    name: 'Spironolactone',                     cat: 'Diuretic',     unit: 'mg',           defaultDose: 50,   mlPerUnit: 12,    note: 'K-sparing diuretic' },
+      { id: 'sudafed',     name: 'Pseudoephedrine (Sudafed)',          cat: 'Decongestant', unit: 'mg',           defaultDose: 60,   mlPerUnit: 4.17,  note: 'Sympathomimetic · dries mucous membranes' },
+      { id: 'phenyl',      name: 'Phenylephrine',                      cat: 'Decongestant', unit: 'mg',           defaultDose: 10,   mlPerUnit: 20,    note: 'Vasoconstrictor — mild' },
+      { id: 'nicotine',    name: 'Nicotine pouch (Velo / Zyn)',        cat: 'Stim',         unit: 'pouches/day',  defaultDose: 4,    mlPerUnit: 62.5,  note: 'Vasoconstriction + dry mouth' },
+      { id: 'nicpatch',    name: 'Nicotine patch',                     cat: 'Stim',         unit: 'mg',           defaultDose: 14,   mlPerUnit: 18,    note: '24-h transdermal · sustained release' },
+      { id: 'alcohol',     name: 'Alcohol',                            cat: 'Depressant',   unit: 'drinks/day',   defaultDose: 1,    mlPerUnit: 400,   note: '~10ml urine per gram ethanol — adds up fast' },
+      { id: 'cannabis',    name: 'Cannabis / THC',                     cat: 'Other',        unit: 'sessions/day', defaultDose: 1,    mlPerUnit: 250,   note: 'Cottonmouth — saliva gland inhibition' },
+      { id: 'creatine',    name: 'Creatine monohydrate',               cat: 'Supplement',   unit: 'g/day',        defaultDose: 5,    mlPerUnit: 80,    note: 'Pulls water into muscle cells — drink more' },
+      { id: 'preworkout',  name: 'Pre-workout (caffeine + others)',    cat: 'Stim',         unit: 'servings/day', defaultDose: 1,    mlPerUnit: 300,   note: 'High-stim formula on top of caffeine' },
+      { id: 'metformin',   name: 'Metformin',                          cat: 'Glucose',      unit: 'mg',           defaultDose: 1000, mlPerUnit: 0.3,   note: 'Mild GI fluid loss' },
+      { id: 'sertraline',  name: 'SSRI (sertraline / escitalopram / fluoxetine)', cat: 'SSRI', unit: 'mg',         defaultDose: 50,   mlPerUnit: 4,     note: 'Mild dry mouth in some users' },
+      { id: 'wellbutrin',  name: 'Bupropion (Wellbutrin)',             cat: 'NDRI',         unit: 'mg',           defaultDose: 300,  mlPerUnit: 1.17,  note: 'Stim-like profile' }
+    ];
+
+    function subExtraMl(s) {
+      const dose = (s.dose != null ? s.dose : s.defaultDose) || 0;
+      return Math.max(0, dose * (s.mlPerUnit || 0));
+    }
+    function subDoseLabel(s) {
+      const dose = (s.dose != null ? s.dose : s.defaultDose);
+      return dose + ' ' + (s.unit || '');
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) return normalize(JSON.parse(raw));
+      } catch (e) {}
+      return normalize({});
+    }
+    function normalize(s) {
+      s = s || {};
+      s.unit = s.unit || 'bottle';
+      s.bottleMl = s.bottleMl || 500;
+      s.glassMl = s.glassMl || 250;
+      s.weightUnit = s.weightUnit || 'kg';
+      s.profile = Object.assign({ weightKg: 75, age: 25, sex: 'm', activityHrsPerWeek: 5 }, s.profile || {});
+      s.caffeineMgPerDay = (s.caffeineMgPerDay != null) ? s.caffeineMgPerDay : 200;
+      s.substances = Array.isArray(s.substances) ? s.substances : [];
+      s.logs = (s.logs && typeof s.logs === 'object') ? s.logs : {}; // {YYYY-MM-DD: count}
+      return s;
+    }
+    function saveState() { try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch (e) {} }
+    let state = loadState();
+
+    function dateKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function todayKey() { return dateKey(new Date()); }
+    function todayCount() { return state.logs[todayKey()] || 0; }
+    function setTodayCount(n) {
+      const k = todayKey();
+      if (n <= 0) delete state.logs[k]; else state.logs[k] = n;
+      saveState();
+    }
+
+    // base = weight_kg x 35ml (NAM/IOM standard); exercise ~500ml/hr trained;
+    // caffeine = mild diuresis above 200mg/day; substances = sum of added meds/stims.
+    function computeTargetMl() {
+      const p = state.profile;
+      const wKg = state.weightUnit === 'lb' ? p.weightKg / 2.20462 : p.weightKg;
+      const base = wKg * 35;
+      const exercise = (p.activityHrsPerWeek || 0) / 7 * 500;
+      const caffeine = Math.max(0, (state.caffeineMgPerDay || 0) - 200) * 1.5;
+      const subs = (state.substances || []).reduce((s, x) => s + subExtraMl(x), 0);
+      let adjust = 0;
+      if (p.sex === 'm') adjust += 200;
+      if ((p.age || 0) >= 50) adjust += 100;
+      return { base, exercise, caffeine, subs, adjust, total: base + exercise + caffeine + subs + adjust };
+    }
+
+    function unitVolMl() {
+      if (state.unit === 'bottle') return state.bottleMl || 500;
+      if (state.unit === 'glass') return state.glassMl || 250;
+      if (state.unit === 'oz') return 30;
+      return 1;
+    }
+    function unitLabelPlural() {
+      if (state.unit === 'bottle') return 'bottles';
+      if (state.unit === 'glass') return 'glasses';
+      if (state.unit === 'oz') return 'oz';
+      return 'ml';
+    }
+    function unitLabelSingular() {
+      if (state.unit === 'bottle') return 'bottle';
+      if (state.unit === 'glass') return 'glass';
+      if (state.unit === 'oz') return 'oz';
+      return 'ml';
+    }
+    function fmtMl(ml) { return ml >= 1000 ? (ml / 1000).toFixed(1) + ' L' : Math.round(ml) + ' ml'; }
+    function escapeHtmlWc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function renderWater() {
+      const calc = computeTargetMl();
+      const targetUnits = Math.ceil(calc.total / unitVolMl());
+      const count = todayCount();
+      const unitName = unitLabelPlural();
+
+      $('wcUnitLabel').textContent = unitName.toUpperCase() + ' DRANK TODAY';
+      $('wcNum').textContent = count;
+      $('wcTarget').textContent = '/ ' + targetUnits;
+      $('wcPlusLabel').textContent = 'Drank a ' + unitLabelSingular();
+
+      const pctRaw = (count / targetUnits) * 100;
+      const fillPct = Math.min(150, pctRaw) / 1.5;
+      const fill = $('wcBarFill');
+      fill.style.width = fillPct + '%';
+      fill.classList.toggle('over', pctRaw > 100);
+      $('wcBarMin').textContent = '0';
+      $('wcBarMax').textContent = Math.ceil(targetUnits * 1.5) + '+';
+      $('wcBarZoneStart').style.left = (65 / 1.5) + '%';
+      $('wcBarZoneEnd').style.left = (100 / 1.5) + '%';
+
+      const helper = $('wcHelper');
+      if (count === 0) { helper.textContent = 'Start the day — first one in.'; helper.classList.remove('good'); }
+      else if (pctRaw < 50) { helper.textContent = 'Behind pace — drink one in the next hour.'; helper.classList.remove('good'); }
+      else if (pctRaw < 100) { helper.textContent = (targetUnits - count) + ' to go. Pacing well.'; helper.classList.remove('good'); }
+      else if (pctRaw < 130) { helper.textContent = '✓ Target hit — top up if you train this evening.'; helper.classList.add('good'); }
+      else { helper.textContent = 'Strong — way past target.'; helper.classList.add('good'); }
+
+      $('wcMinusBtn').disabled = count <= 0;
+
+      renderWhy(calc, targetUnits);
+      renderHistory();
+      renderSparkline(targetUnits);
+    }
+
+    function renderWhy(calc, targetUnits) {
+      const wrap = $('wcWhyBody');
+      const u = state.weightUnit;
+      const wDisp = state.profile.weightKg.toFixed(0);
+      let html = '';
+      html += '<div class="wc-why-row"><span class="wc-why-label">Base (' + wDisp + ' ' + u + ' × 35 ml)</span><span class="wc-why-val">' + fmtMl(calc.base) + '</span></div>';
+      if (calc.exercise > 0) html += '<div class="wc-why-row"><span class="wc-why-label">+ Exercise (' + state.profile.activityHrsPerWeek + ' h/wk)</span><span class="wc-why-val">+ ' + fmtMl(calc.exercise) + '</span></div>';
+      if (calc.caffeine > 0) html += '<div class="wc-why-row"><span class="wc-why-label">+ Caffeine (' + state.caffeineMgPerDay + ' mg/day)</span><span class="wc-why-val">+ ' + fmtMl(calc.caffeine) + '</span></div>';
+      (state.substances || []).forEach(s => {
+        html += '<div class="wc-why-row"><span class="wc-why-label">+ ' + escapeHtmlWc(s.name) + ' (' + escapeHtmlWc(subDoseLabel(s)) + ')</span><span class="wc-why-val">+ ' + fmtMl(subExtraMl(s)) + '</span></div>';
+      });
+      if (calc.adjust > 0) html += '<div class="wc-why-row"><span class="wc-why-label">+ Sex / age adjustment</span><span class="wc-why-val">+ ' + fmtMl(calc.adjust) + '</span></div>';
+      html += '<div class="wc-why-row total"><span class="wc-why-label">Daily target</span><span class="wc-why-val">' + fmtMl(calc.total) + ' ≈ ' + targetUnits + ' ' + unitLabelPlural() + '</span></div>';
+      wrap.innerHTML = html;
+    }
+
+    function renderHistory() {
+      const list = $('wcHistList');
+      const target = Math.ceil(computeTargetMl().total / unitVolMl());
+      const days = [];
+      for (let i = 6; i >= 1; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        days.push({ date: d, count: state.logs[dateKey(d)] || 0 });
+      }
+      list.innerHTML = days.map(({ date, count }) => {
+        const dows = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const lbl = dows[date.getDay()] + ' ' + (date.getMonth() + 1) + '/' + date.getDate();
+        const pct = Math.min(100, (count / target) * 100);
+        const cls = (count >= target) ? '' : 'miss';
+        return '<div class="wc-hist-row">'
+          + '<span class="wc-hist-date">' + lbl + '</span>'
+          + '<div class="wc-hist-bar-wrap"><div class="wc-hist-bar-fill ' + cls + '" style="width:' + pct + '%"></div></div>'
+          + '<span class="wc-hist-count">' + count + '/' + target + '</span>'
+          + '</div>';
+      }).join('') || '<div style="text-align:center;font-size:12px;color:var(--text-tertiary);padding:10px 0">No logs yet.</div>';
+    }
+
+    function renderSparkline(target) {
+      const svg = $('wcSparkSvg');
+      const W = 280, H = 60, pad = 4;
+      const days = 14;
+      const data = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        data.push(state.logs[dateKey(d)] || 0);
+      }
+      const maxVal = Math.max(target, Math.max.apply(null, data)) || 1;
+      const colW = (W - pad * 2) / data.length;
+      const barW = colW * 0.7;
+      let html = '';
+      const targetY = H - pad - (target / maxVal) * (H - pad * 2);
+      html += '<line class="wc-spark-target" x1="0" x2="' + W + '" y1="' + targetY.toFixed(1) + '" y2="' + targetY.toFixed(1) + '"/>';
+      data.forEach((v, i) => {
+        const x = pad + i * colW + (colW - barW) / 2;
+        const h = (v / maxVal) * (H - pad * 2);
+        const y = H - pad - h;
+        const cls = (v >= target) ? 'wc-spark-bar' : 'wc-spark-bar miss';
+        html += '<rect class="' + cls + '" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + Math.max(0, h).toFixed(1) + '" rx="2"/>';
+      });
+      svg.innerHTML = html;
+    }
+
+    function renderAllHydration() { renderWater(); }
+    renderHydration = renderAllHydration;
+
+    $('wcPlusBtn').addEventListener('click', () => {
+      setTodayCount(todayCount() + 1);
+      renderWater();
+      const btn = $('wcPlusBtn');
+      btn.style.transform = 'scale(0.97)';
+      setTimeout(() => { btn.style.transform = ''; }, 120);
+    });
+    $('wcMinusBtn').addEventListener('click', () => {
+      setTodayCount(Math.max(0, todayCount() - 1));
+      renderWater();
+    });
+    $('wcWhyToggle').addEventListener('click', () => {
+      const body = $('wcWhyBody');
+      const open = body.classList.contains('show');
+      body.classList.toggle('show');
+      $('wcWhyToggle').setAttribute('aria-expanded', open ? 'false' : 'true');
+    });
+
+    // ---------- Settings modal ----------
+    function renderSettings() {
+      $('wcSetWeight').value = state.profile.weightKg;
+      $('wcSetAge').value = state.profile.age;
+      $('wcSetActivity').value = state.profile.activityHrsPerWeek;
+      $('wcSetCaffeine').value = state.caffeineMgPerDay;
+      $('wcSetBottleMl').value = state.bottleMl;
+      $('wcSetGlassMl').value = state.glassMl;
+      setSegActive('wcSetUnit', state.unit);
+      setSegActive('wcSetWeightUnit', state.weightUnit);
+      setSegActive('wcSetSex', state.profile.sex);
+      renderSubsList();
+    }
+    function setSegActive(segId, value) {
+      $(segId).querySelectorAll('button').forEach(b => {
+        const v = b.dataset.u || b.dataset.s;
+        b.classList.toggle('active', v === value);
+      });
+    }
+    function bindSeg(segId, attr, onPick) {
+      $(segId).querySelectorAll('button').forEach(b => {
+        b.addEventListener('click', () => {
+          const v = b.dataset[attr];
+          $(segId).querySelectorAll('button').forEach(x => x.classList.remove('active'));
+          b.classList.add('active');
+          onPick(v);
+        });
+      });
+    }
+    bindSeg('wcSetUnit', 'u', (v) => { state.unit = v; saveState(); renderWater(); });
+    bindSeg('wcSetWeightUnit', 'u', (v) => { state.weightUnit = v; saveState(); renderWater(); });
+    bindSeg('wcSetSex', 's', (v) => { state.profile.sex = v; saveState(); renderWater(); });
+
+    ['wcSetWeight', 'wcSetAge', 'wcSetActivity', 'wcSetCaffeine', 'wcSetBottleMl', 'wcSetGlassMl'].forEach(id => {
+      $(id).addEventListener('input', () => {
+        const v = parseFloat($(id).value);
+        if (id === 'wcSetWeight') state.profile.weightKg = v || 0;
+        else if (id === 'wcSetAge') state.profile.age = v || 0;
+        else if (id === 'wcSetActivity') state.profile.activityHrsPerWeek = v || 0;
+        else if (id === 'wcSetCaffeine') state.caffeineMgPerDay = v || 0;
+        else if (id === 'wcSetBottleMl') state.bottleMl = v || 500;
+        else if (id === 'wcSetGlassMl') state.glassMl = v || 250;
+        saveState(); renderWater();
+      });
+    });
+
+    function renderSubsList() {
+      const list = $('wcSubsList');
+      if (!state.substances || !state.substances.length) {
+        list.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary);text-align:center;padding:12px 0;font-style:italic;">No substances added.</div>';
+        return;
+      }
+      list.innerHTML = state.substances.map((s, i) =>
+        '<div class="wc-sub-row" data-i="' + i + '">'
+        + '<div class="wc-sub-row-info">'
+        + '<div class="wc-sub-row-name">' + escapeHtmlWc(s.name) + '</div>'
+        + '<div class="wc-sub-row-meta">+ ' + fmtMl(subExtraMl(s)) + ' / day · ' + escapeHtmlWc(s.cat || '') + '</div>'
+        + '</div>'
+        + '<div class="wc-sub-row-dose">'
+        + '<input type="number" class="wc-sub-dose-input" data-i="' + i + '" min="0" step="0.5" value="' + (s.dose != null ? s.dose : s.defaultDose) + '">'
+        + '<span class="wc-sub-dose-unit">' + escapeHtmlWc(s.unit || '') + '</span>'
+        + '</div>'
+        + '<button type="button" class="wc-sub-row-del" data-i="' + i + '" aria-label="Remove">×</button>'
+        + '</div>'
+      ).join('');
+      list.querySelectorAll('.wc-sub-dose-input').forEach(inp => {
+        inp.addEventListener('input', () => {
+          const i = parseInt(inp.dataset.i, 10);
+          state.substances[i].dose = parseFloat(inp.value) || 0;
+          saveState();
+          const row = inp.closest('.wc-sub-row');
+          row.querySelector('.wc-sub-row-meta').textContent = '+ ' + fmtMl(subExtraMl(state.substances[i])) + ' / day · ' + (state.substances[i].cat || '');
+          renderWater();
+        });
+      });
+      list.querySelectorAll('.wc-sub-row-del').forEach(b => {
+        b.addEventListener('click', () => {
+          state.substances.splice(parseInt(b.dataset.i, 10), 1);
+          saveState(); renderSubsList(); renderWater();
+        });
+      });
+    }
+
+    $('wcSubSearch').addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      const results = $('wcSubResults');
+      if (!q) { results.classList.remove('show'); results.innerHTML = ''; return; }
+      const matches = SUBSTANCE_DB.filter(s => s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q)).slice(0, 8);
+      if (!matches.length) {
+        results.innerHTML = '<div class="wc-search-result"><span class="wc-search-result-name">No matches</span><span class="wc-search-result-meta">Try a different name or category</span></div>';
+        results.classList.add('show');
+        return;
+      }
+      results.innerHTML = matches.map(s => {
+        const defaultExtra = (s.defaultDose || 0) * (s.mlPerUnit || 0);
+        return '<div class="wc-search-result" data-id="' + s.id + '">'
+          + '<span class="wc-search-result-name">' + escapeHtmlWc(s.name) + ' <span class="wc-search-result-add">+</span></span>'
+          + '<span class="wc-search-result-meta">' + escapeHtmlWc(s.cat) + ' · ' + s.defaultDose + ' ' + escapeHtmlWc(s.unit) + ' default → adds ~' + fmtMl(defaultExtra) + '/day · ' + escapeHtmlWc(s.note) + '</span>'
+          + '</div>';
+      }).join('');
+      results.classList.add('show');
+      results.querySelectorAll('.wc-search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          const id = el.dataset.id;
+          const sub = SUBSTANCE_DB.find(x => x.id === id);
+          if (!sub) return;
+          if ((state.substances || []).find(x => x.id === id)) { alert('Already added — edit the dose below.'); return; }
+          state.substances.push({ id: sub.id, name: sub.name, cat: sub.cat, unit: sub.unit, mlPerUnit: sub.mlPerUnit, defaultDose: sub.defaultDose, dose: sub.defaultDose });
+          saveState();
+          $('wcSubSearch').value = '';
+          results.classList.remove('show');
+          renderSubsList(); renderWater();
+        });
+      });
+    });
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.wc-search-wrap')) $('wcSubResults').classList.remove('show');
+    });
+
+    $('wcSettingsBtn').addEventListener('click', () => { renderSettings(); $('wcSetModalBg').classList.add('show'); });
+    $('wcSetClose').addEventListener('click', () => $('wcSetModalBg').classList.remove('show'));
+
+    $('wcSetExport').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'hydration-data-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click(); URL.revokeObjectURL(url);
+    });
+    $('wcSetImport').addEventListener('click', () => $('wcSetImportFile').click());
+    $('wcSetImportFile').addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const parsed = JSON.parse(r.result);
+          if (!confirm('Replace ALL current hydration data with the imported file?')) return;
+          state = normalize(parsed);
+          saveState(); renderSettings(); renderWater();
+        } catch (err) { alert('Import failed: ' + err.message); }
+      };
+      r.readAsText(f);
+    });
+    $('wcSetReset').addEventListener('click', () => {
+      if (!confirm('Wipe ALL hydration logs and settings? This cannot be undone.')) return;
+      localStorage.removeItem(LS_KEY);
+      state = loadState();
+      $('wcSetModalBg').classList.remove('show');
+      renderWater();
+    });
+
+    renderWater();
+  })();
+
   // ---------- Manual add ----------
   document.getElementById('manualAddBtn').addEventListener('click', () => {
     const nameEl = document.getElementById('manualName');
@@ -878,7 +1555,7 @@ main {
     }
     window.addEventListener('cloud-sync-status', (e) => {
       const d = e.detail || {};
-      if (d.appKey !== 'nutrition') return;
+      if (d.appKey !== 'nutrition' && d.appKey !== 'health') return;
       if (d.status === 'push-pending') show('pending', 'Saving…');
       else if (d.status === 'push-ok') { show('ok', 'Saved to cloud ✓'); autoHide(2500); }
       else if (d.status === 'push-failed') show('fail', "Save failed — this change may not reach your other device");
@@ -892,9 +1569,9 @@ main {
   renderMacros();
   renderLog();
 
-  window.addEventListener('storage', () => { renderMacros(); renderLog(); });
-  window.addEventListener('focus', () => { renderMacros(); renderLog(); });
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderMacros(); renderLog(); } });
+  window.addEventListener('storage', () => { renderMacros(); renderLog(); renderHydration(); });
+  window.addEventListener('focus', () => { renderMacros(); renderLog(); renderHydration(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderMacros(); renderLog(); renderHydration(); } });
 
   document.addEventListener('DOMContentLoaded', function () {
     if (typeof initCloudSync !== 'function') return;
@@ -902,6 +1579,14 @@ main {
       appKey: 'nutrition',
       syncedPrefixes: ['nutrition:'],
       onApplied: function () { renderMacros(); renderLog(); }
+    });
+    // Hydration data lives under the same Supabase row health.html already
+    // owns (appKey 'health') — keeps existing cross-device sync working
+    // unchanged for data that was tracked there before this page existed.
+    initCloudSync({
+      appKey: 'health',
+      syncedKeys: ['po_water_v1'],
+      onApplied: function () { renderHydration(); }
     });
   });
 })();

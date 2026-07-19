@@ -204,7 +204,7 @@ body.topbar-modal-open {
   const topbarHtml = `
 <header class="topbar" id="topbar" role="navigation" aria-label="Quick actions">
   <div class="topbar-water-wrap">
-    <a href="health.html#water" class="topbar-water-pill" id="topbarWater" aria-label="Water progress">
+    <a href="nutrition.html#hydrationSection" class="topbar-water-pill" id="topbarWater" aria-label="Water progress">
       <span class="topbar-pill-dot"></span>
       <span class="topbar-pill-count" id="topbarWaterCount">0/0</span>
     </a>
@@ -230,9 +230,9 @@ body.topbar-modal-open {
     <span class="bottombar-tab-icon">💊</span>
     <span>Health</span>
   </a>
-  <a href="po-water.html" class="bottombar-tab" data-page="water">
-    <span class="bottombar-tab-icon">💧</span>
-    <span>Water</span>
+  <a href="nutrition.html" class="bottombar-tab" data-page="nutrition">
+    <span class="bottombar-tab-icon">🥗</span>
+    <span>Nutrition</span>
   </a>
   <a href="finance.html" class="bottombar-tab" data-page="finance">
     <span class="bottombar-tab-icon">📊</span>
@@ -275,7 +275,7 @@ body.topbar-modal-open {
     const p = (window.location.pathname || '').toLowerCase();
     if (p.endsWith('health.html')) return 'health';
     if (p.endsWith('gym.html')) return 'fitness';
-    if (p.endsWith('po-water.html')) return 'water';
+    if (p.endsWith('nutrition.html')) return 'nutrition';
     if (p.endsWith('finance.html')) return 'finance';
     if (p.endsWith('caffeine.html')) return 'caffeine';
     if (p.endsWith('nova-lite.html')) return 'nova';
@@ -419,10 +419,11 @@ body.topbar-modal-open {
   }
 
   async function pushWaterMergedToSupabase(localWater) {
-    // Only do this when we're NOT on the health page — health page
-    // has its own sync that already detects the localStorage change.
-    if (window.location.pathname.endsWith('/health.html') ||
-        window.location.pathname.endsWith('health.html')) return;
+    // Only do this when we're NOT on health.html or nutrition.html — both
+    // already run their own full sync for po_water_v1, so this topbar
+    // merge-push would just race a duplicate write to the same row.
+    if (window.location.pathname.endsWith('health.html') ||
+        window.location.pathname.endsWith('nutrition.html')) return;
 
     if (!window.supabase || !TOPBAR_SUPABASE_URL || !TOPBAR_SUPABASE_KEY) return;
     if (TOPBAR_SUPABASE_URL.indexOf('PASTE-') === 0) return;
