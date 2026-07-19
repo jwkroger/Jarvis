@@ -33,6 +33,17 @@
     let suppressSync = false;
     let lastSyncedJson = null;
 
+    // Broadcasts every status change as a DOM event so a page can show a
+    // visible "synced / failed" indicator without needing devtools —
+    // see the sync-status listener in nutrition.html for an example.
+    function notify(status, err) {
+      try {
+        window.dispatchEvent(new CustomEvent('cloud-sync-status', {
+          detail: { appKey: appKey, status: status, error: err || null, at: Date.now() }
+        }));
+      } catch (e) {}
+    }
+
     function matches(k) {
       if (!k) return false;
       if (syncedKeys.indexOf(k) !== -1) return true;
@@ -100,14 +111,21 @@
       const state = collect();
       const json = JSON.stringify(state);
       if (json === lastSyncedJson) return;
+      notify('push-pending');
       try {
         const { error } = await supa.from('app_state').upsert(
           { key: appKey, data: state, updated_at: new Date().toISOString() },
           { onConflict: 'key' }
         );
-        if (!error) lastSyncedJson = json;
-        else console.error('[sync:' + appKey + '] push failed — this device\'s change was NOT saved to the cloud:', error);
-      } catch (e) { console.error('[sync:' + appKey + '] push threw:', e); }
+        if (!error) { lastSyncedJson = json; notify('push-ok'); }
+        else {
+          console.error('[sync:' + appKey + '] push failed — this device\'s change was NOT saved to the cloud:', error);
+          notify('push-failed', error);
+        }
+      } catch (e) {
+        console.error('[sync:' + appKey + '] push threw:', e);
+        notify('push-failed', e);
+      }
     }
     // Short debounce so a quick refresh right after a change has less of a
     // chance of racing the network request (flushOnUnload below is the
@@ -144,14 +162,19 @@
           .from('app_state').select('data').eq('key', appKey).maybeSingle();
         if (error) {
           console.error('[sync:' + appKey + '] initial fetch failed — starting from local data only:', error);
+          notify('pull-failed', error);
         }
         if (!error && data && data.data && Object.keys(data.data).length > 0) {
           lastSyncedJson = JSON.stringify(data.data);
           applyRemote(data.data);
+          notify('pull-ok');
         } else if (Object.keys(collect()).length > 0) {
           schedulePush();
         }
-      } catch (e) { console.error('[sync:' + appKey + '] initial fetch threw:', e); }
+      } catch (e) {
+        console.error('[sync:' + appKey + '] initial fetch threw:', e);
+        notify('pull-failed', e);
+      }
       supa.channel('app_state_' + appKey)
         .on('postgres_changes', {
           event: '*',
@@ -172,6 +195,9 @@
           // for the app_state table in the Supabase project.
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             console.error('[sync:' + appKey + '] realtime subscription failed (' + status + ') — live updates are off, only load-time sync will work:', err);
+            notify('realtime-failed', err);
+          } else if (status === 'SUBSCRIBED') {
+            notify('realtime-ok');
           }
         });
     })();

@@ -69,6 +69,23 @@ main {
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
 }
+.sync-status {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 11.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
+  margin: -8px 0 18px; border: 1px solid transparent;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.sync-status[hidden] { display: none; }
+.sync-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sync-status.pending { color: var(--text-tertiary); background: rgba(255,255,255,0.04); border-color: var(--border-strong); }
+.sync-status.pending::before { background: var(--text-tertiary); animation: sync-pulse 1s ease-in-out infinite; }
+.sync-status.ok { color: #6BE3A4; background: rgba(107,227,164,0.10); border-color: rgba(107,227,164,0.30); }
+.sync-status.ok::before { background: #6BE3A4; }
+.sync-status.fail { color: #FF8A8A; background: rgba(255,138,138,0.10); border-color: rgba(255,138,138,0.30); }
+.sync-status.fail::before { background: #FF8A8A; }
+.sync-status.warn { color: #F2C063; background: rgba(242,192,99,0.10); border-color: rgba(242,192,99,0.30); }
+.sync-status.warn::before { background: #F2C063; }
+@keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .section { margin-bottom: 32px; }
 .section-title {
   font-family: var(--font-mono);
@@ -272,6 +289,7 @@ main {
 <body>
 <main>
   <h1 class="dash-title">Nutrition</h1>
+  <div class="sync-status" id="syncStatus" hidden></div>
 
   <div class="section" id="coachSection">
     <div class="section-title">Macro Coach</div>
@@ -840,6 +858,35 @@ main {
     });
     ['manualName', 'manualCal', 'manualProtein', 'manualCarbs', 'manualFat'].forEach(id => { document.getElementById(id).value = ''; });
   });
+
+  // ---------- Sync status badge — visible proof of what's happening with
+  // the cloud save, so a stuck save is obvious without opening devtools
+  // (especially useful on a phone, where devtools aren't handy). ----------
+  (function initSyncStatusBadge() {
+    const el = document.getElementById('syncStatus');
+    if (!el) return;
+    let hideTimer = null;
+    function show(cls, text) {
+      clearTimeout(hideTimer);
+      el.className = 'sync-status ' + cls;
+      el.textContent = text;
+      el.hidden = false;
+    }
+    function autoHide(ms) {
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => { el.hidden = true; }, ms);
+    }
+    window.addEventListener('cloud-sync-status', (e) => {
+      const d = e.detail || {};
+      if (d.appKey !== 'nutrition') return;
+      if (d.status === 'push-pending') show('pending', 'Saving…');
+      else if (d.status === 'push-ok') { show('ok', 'Saved to cloud ✓'); autoHide(2500); }
+      else if (d.status === 'push-failed') show('fail', "Save failed — this change may not reach your other device");
+      else if (d.status === 'pull-ok') { show('ok', 'Synced from cloud ✓'); autoHide(2500); }
+      else if (d.status === 'pull-failed') show('fail', "Couldn't load cloud data — showing local only");
+      else if (d.status === 'realtime-failed') show('warn', 'Live sync unavailable — refresh to see other devices’ changes');
+    });
+  })();
 
   // ---------- Boot ----------
   renderMacros();
