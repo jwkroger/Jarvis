@@ -1191,8 +1191,14 @@ body::after {
   /* ---------- boot ---------- */
   renderLists();
 
-  if (window.initCloudSync) {
-    window.initCloudSync({
+  // Wait for DOMContentLoaded — sync.js loads with `defer`, so it hasn't run
+  // yet at the point this inline script executes; without this wait
+  // `window.initCloudSync` would still be undefined and sync would silently
+  // never turn on (this was the bug: companies never left the device that
+  // added them). Same fix already applied in pt.html / evotix.html.
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof initCloudSync !== 'function') return;
+    initCloudSync({
       appKey: 'outreach',
       syncedKeys: [STORE_KEY, FRAMEWORK_EMAIL_KEY, FRAMEWORK_LINKEDIN_KEY],
       onApplied: function () {
@@ -1203,17 +1209,17 @@ body::after {
     // Must mirror evotix.html's own 'evotix' sync config exactly — both pages
     // write to evotix:saos, and cloud sync replaces the whole remote record
     // rather than merging, so a narrower key list here would clobber the rest.
-    window.initCloudSync({
+    initCloudSync({
       appKey: 'evotix',
       syncedKeys: ['evotix:paychecks', 'evotix:saos'],
       syncedPrefixes: ['evotix:mit:']
     });
     // Must mirror main.html's 'goals' sync config exactly, same reason.
-    window.initCloudSync({
+    initCloudSync({
       appKey: 'goals',
       syncedPrefixes: ['goals:', 'lifegoals_v1', 'lifegoals_period_meta_v1', 'lgdaily:', 'lgweekly:', 'lgmonthly:']
     });
-  }
+  });
 })();
 </script>
 </body>
