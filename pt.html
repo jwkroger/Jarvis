@@ -542,11 +542,6 @@ body::after {
   const PILLARS = ['Transformation', 'BFT Highlight', 'Online Coaching', 'Education / Tips', 'Behind the Scenes', 'Personal Brand', 'Other'];
   const STAGES = ['idea', 'scripted', 'filmed', 'posted'];
 
-  // Paste an Anthropic API key here to enable AI idea suggestions + script drafts.
-  // Without one, the buttons fall back to a clear inline message — everything
-  // else (manual ideas, scripts, checklist, board) still works.
-  const ANTHROPIC_API_KEY = '';
-
   const $ = (id) => document.getElementById(id);
   const statusEl = $('cStatus');
 
@@ -584,50 +579,28 @@ body::after {
     return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
 
-  /* ---------- Claude API (browser-direct, same pattern as the goal Polish button) ---------- */
-  async function callClaude(prompt, maxTokens) {
-    if (!ANTHROPIC_API_KEY) {
-      const err = new Error('no-key');
-      err.noKey = true;
-      throw err;
-    }
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+  /* ---------- AI helper — proxied through /api/pt-content so the ---------- */
+  /* Anthropic key stays server-side (Vercel env var), never in the browser. */
+  async function callContentApi(body) {
+    const res = await fetch('/api/pt-content', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
     });
-    const data = await res.json();
-    const text = data && data.content && data.content[0] && data.content[0].text;
-    if (!text) throw new Error('empty response');
-    return text;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data && data.error) || ('request failed (' + res.status + ')'));
+    return data;
   }
 
   async function suggestIdeas() {
     const items = load();
     const existing = items.filter((c) => c.stage === 'idea').map((c) => c.idea).slice(-15);
-    const prompt = 'You are a social media strategist helping a personal trainer grow an Instagram presence. ' +
-      'They currently run in-person group training at BFT and are starting to build an online coaching offer, ' +
-      'so mix awareness content (group training energy, client wins, education) with online-coaching-pitch ideas. ' +
-      'Generate 5 short-form video content ideas (one-line hooks only, no scripts) spread across these content pillars: ' +
-      PILLARS.slice(0, 6).join(', ') + '. ' +
-      'Avoid repeating these existing ideas: ' + (existing.join(' | ') || 'none yet') + '. ' +
-      'Return ONLY a JSON array of 5 objects like {"pillar":"...","idea":"..."} using pillar values exactly from the list above. No preamble, no markdown fences.';
 
     setStatus('Thinking…');
     $('cSuggestBtn').disabled = true;
     try {
-      const text = await callClaude(prompt, 800);
-      const cleaned = text.trim().replace(/^```(json)?/i, '').replace(/```$/, '').trim();
-      const ideas = JSON.parse(cleaned);
+      const data = await callContentApi({ type: 'ideas', pillars: PILLARS.slice(0, 6), existing: existing });
+      const ideas = Array.isArray(data.ideas) ? data.ideas : [];
       const list = load();
       ideas.forEach((x) => {
         list.push({
@@ -644,33 +617,23 @@ body::after {
       setStatus('');
       render();
     } catch (e) {
-      setStatus(e && e.noKey
-        ? 'Add an Anthropic API key in the code (search ANTHROPIC_API_KEY in pt.html) to enable AI suggestions.'
-        : 'Couldn\'t generate ideas — try again.', 5000);
+      setStatus('Couldn\'t generate ideas — ' + (e && e.message ? e.message : 'try again.'), 5000);
     } finally {
       $('cSuggestBtn').disabled = false;
     }
   }
 
   async function writeScript(card, textareaEl, btnEl) {
-    const prompt = 'Write a short-form Instagram Reel script and caption for a personal trainer\'s content idea.\n' +
-      'Idea: "' + card.idea + '"\n' +
-      'Content pillar: ' + card.pillar + '\n' +
-      'Keep the reel 30-45 seconds. Format exactly as plain text:\n' +
-      'HOOK: ...\nBEATS:\n- ...\n- ...\nCTA: ...\nCAPTION: ...\nHASHTAGS: ...\n' +
-      'No markdown, no extra commentary.';
-
     const origLabel = btnEl.textContent;
     btnEl.disabled = true;
     btnEl.textContent = 'Writing…';
     try {
-      const text = await callClaude(prompt, 700);
-      textareaEl.value = text.trim();
-      updateCard(card.id, (c) => { c.script = text.trim(); });
+      const data = await callContentApi({ type: 'script', idea: card.idea, pillar: card.pillar });
+      const text = (data.text || '').trim();
+      textareaEl.value = text;
+      updateCard(card.id, (c) => { c.script = text; });
     } catch (e) {
-      setStatus(e && e.noKey
-        ? 'Add an Anthropic API key in the code (search ANTHROPIC_API_KEY in pt.html) to enable AI scripts.'
-        : 'Couldn\'t write a script — try again.', 5000);
+      setStatus('Couldn\'t write a script — ' + (e && e.message ? e.message : 'try again.'), 5000);
       btnEl.disabled = false;
       btnEl.textContent = origLabel;
     }
