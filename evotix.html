@@ -200,21 +200,27 @@ body::after {
 .gm-add:hover { filter: brightness(1.06); transform: translateY(-1px); }
 .gm-add:active { transform: translateY(0); }
 
+.outreach-card { padding: 26px; }
 .outreach-link-card {
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; gap: 20px;
   text-decoration: none; position: relative;
 }
 .outreach-link-icon {
-  width: 46px; height: 46px; flex-shrink: 0; border-radius: 13px;
-  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  width: 62px; height: 62px; flex-shrink: 0; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; font-size: 30px;
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
 }
 .outreach-link-body { flex: 1; min-width: 0; }
-.outreach-link-title { font-size: 15.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 2px; }
-.outreach-link-sub { font-size: 12.5px; color: var(--text-tertiary); }
-.outreach-link-arrow { font-size: 18px; color: var(--accent); flex-shrink: 0; transition: transform 0.18s ease; }
+.outreach-link-title { font-size: 19px; font-weight: 700; color: var(--text-primary); margin-bottom: 3px; }
+.outreach-link-sub { font-size: 13.5px; color: var(--text-tertiary); }
+.outreach-link-arrow { font-size: 22px; color: var(--accent); flex-shrink: 0; transition: transform 0.18s ease; }
 .outreach-link-card:hover .outreach-link-arrow { transform: translateX(4px); }
+@media (max-width: 480px) {
+  .outreach-card { padding: 20px; }
+  .outreach-link-icon { width: 52px; height: 52px; font-size: 26px; }
+  .outreach-link-title { font-size: 17px; }
+}
 
 @media (max-width: 480px) {
   body { padding: max(20px, env(safe-area-inset-top)) 14px 50px; }
@@ -244,6 +250,21 @@ body::after {
         <span class="mit-range" id="mitRange"></span>
       </div>
       <textarea class="mit-textarea" id="mitText" placeholder="Top priorities, meetings, and direction for the week…&#10;e.g. Mon 2pm QBR prep · Wed ship Acme proposal · Fri 1:1s"></textarea>
+    </div>
+  </div>
+
+  <!-- ============ OUTREACH ============ -->
+  <div class="section">
+    <div class="section-title">Day to Day</div>
+    <div class="gm-card outreach-card">
+      <a class="outreach-link-card" href="outreach.html">
+        <span class="outreach-link-icon">📇</span>
+        <span class="outreach-link-body">
+          <div class="outreach-link-title">Outreach</div>
+          <div class="outreach-link-sub">Company research, email &amp; LinkedIn scripts, pipeline tracking</div>
+        </span>
+        <span class="outreach-link-arrow">→</span>
+      </a>
     </div>
   </div>
 
@@ -319,21 +340,6 @@ body::after {
         <input class="gm-input amount-input" id="evAmount" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Amount">
         <button class="gm-add" id="evAdd" type="button">Add</button>
       </div>
-    </div>
-  </div>
-
-  <!-- ============ OUTREACH ============ -->
-  <div class="section">
-    <div class="section-title">Day to Day</div>
-    <div class="gm-card">
-      <a class="outreach-link-card" href="outreach.html">
-        <span class="outreach-link-icon">📇</span>
-        <span class="outreach-link-body">
-          <div class="outreach-link-title">Outreach</div>
-          <div class="outreach-link-sub">Company research, email &amp; LinkedIn scripts, pipeline tracking</div>
-        </span>
-        <span class="outreach-link-arrow">→</span>
-      </a>
     </div>
   </div>
 
