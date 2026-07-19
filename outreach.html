@@ -262,6 +262,20 @@ body::after {
 .contact-add-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .contact-add-row input { flex: 1 1 130px; }
 .contacts-empty { font-size: 12.5px; color: var(--text-tertiary); font-style: italic; margin-bottom: 4px; }
+.mini-label { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 6px; }
+.framework-block { margin-bottom: 16px; }
+.draft-buttons-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.draft-buttons-row .mini-btn { flex: 1; text-align: center; }
+.call-panel { margin-top: 10px; }
+.call-notes-textarea {
+  width: 100%; min-height: 66px; resize: vertical;
+  padding: 9px 11px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  background: rgba(0,0,0,0.28); color: var(--text-primary);
+  font-family: inherit; font-size: 12px; line-height: 1.5; outline: none; margin-bottom: 8px;
+}
+.call-notes-textarea::placeholder { color: var(--text-tertiary); }
+.contact-generated { margin-top: 10px; }
+.contact-generated .generated-box { margin-top: 6px; }
 
 @media (max-width: 480px) {
   body { padding: max(20px, env(safe-area-inset-top)) 14px 50px; }
@@ -529,12 +543,20 @@ body::after {
       contact.touchpoints = (contact.touchpoints || []).filter((t) => t.id !== tpId);
     });
   }
+  function logCallNote(id, contactId, note) {
+    if (!note.trim()) return;
+    addTouchpoint(id, contactId, new Date().toISOString().slice(0, 10), 'Call', note);
+  }
 
-  /* ---------- email / linkedin generation ---------- */
-  async function generateEmail(id, btnEl) {
+  /* ---------- email / linkedin generation — scoped to one contact ---------- */
+  // touchCount is the contact's touchpoint count *before* this generation, so
+  // the server can stage the message (cold open -> follow-up -> break-up)
+  // instead of writing the same pitch every time.
+  async function generateContactEmail(id, contactId, btnEl) {
     const items = load();
     const c = items[findById(items, id)];
-    if (!c) return;
+    const contact = c && (c.contacts || []).find((ct) => ct.id === contactId);
+    if (!contact) return;
     const framework = loadStr(FRAMEWORK_EMAIL_KEY);
     const origLabel = btnEl.textContent;
     btnEl.disabled = true;
@@ -543,12 +565,19 @@ body::after {
       const data = await callApi('/api/outreach-content', {
         type: 'email',
         company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews },
+        contact: { name: contact.name, title: contact.title },
         framework: framework,
-        priorMessages: (c.emails || []).map((e) => e.subject).slice(-8)
+        touchCount: (contact.touchpoints || []).length,
+        priorMessages: (contact.emails || []).slice(-4).map((e) => ({ subject: e.subject, body: e.body }))
       });
       updateCompany(id, (co) => {
-        co.emails = co.emails || [];
-        co.emails.push({ subject: data.subject || '', body: data.body || '', generatedAt: Date.now() });
+        const ct = (co.contacts || []).find((x) => x.id === contactId);
+        if (!ct) return;
+        ct.emails = ct.emails || [];
+        ct.emails.push({ subject: data.subject || '', body: data.body || '', generatedAt: Date.now() });
+        ct.touchpoints = ct.touchpoints || [];
+        ct.touchpoints.push({ id: newId(), date: new Date().toISOString().slice(0, 10), type: 'Email', note: 'Drafted: ' + (data.subject || '') });
+        ct.touchpoints.sort((a, b) => a.date.localeCompare(b.date));
       });
     } catch (e) {
       alert('Couldn\'t generate email: ' + (e && e.message ? e.message : 'try again.'));
@@ -557,10 +586,11 @@ body::after {
       btnEl.textContent = origLabel;
     }
   }
-  async function generateLinkedin(id, btnEl) {
+  async function generateContactLinkedin(id, contactId, btnEl) {
     const items = load();
     const c = items[findById(items, id)];
-    if (!c) return;
+    const contact = c && (c.contacts || []).find((ct) => ct.id === contactId);
+    if (!contact) return;
     const framework = loadStr(FRAMEWORK_LINKEDIN_KEY);
     const origLabel = btnEl.textContent;
     btnEl.disabled = true;
@@ -569,12 +599,19 @@ body::after {
       const data = await callApi('/api/outreach-content', {
         type: 'linkedin',
         company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews },
+        contact: { name: contact.name, title: contact.title },
         framework: framework,
-        priorMessages: (c.linkedin || []).map((m) => m.body).slice(-8)
+        touchCount: (contact.touchpoints || []).length,
+        priorMessages: (contact.linkedin || []).slice(-4).map((m) => ({ body: m.body }))
       });
       updateCompany(id, (co) => {
-        co.linkedin = co.linkedin || [];
-        co.linkedin.push({ body: data.body || '', generatedAt: Date.now() });
+        const ct = (co.contacts || []).find((x) => x.id === contactId);
+        if (!ct) return;
+        ct.linkedin = ct.linkedin || [];
+        ct.linkedin.push({ body: data.body || '', generatedAt: Date.now() });
+        ct.touchpoints = ct.touchpoints || [];
+        ct.touchpoints.push({ id: newId(), date: new Date().toISOString().slice(0, 10), type: 'LinkedIn', note: 'Drafted a message' });
+        ct.touchpoints.sort((a, b) => a.date.localeCompare(b.date));
       });
     } catch (e) {
       alert('Couldn\'t generate LinkedIn message: ' + (e && e.message ? e.message : 'try again.'));
@@ -667,6 +704,7 @@ body::after {
 
   /* ---------- profile modal ---------- */
   let openId = null;
+  const openCallPanels = new Set(); // UI-only state: which contacts' call-note panels are expanded
 
   function openModal(id) {
     openId = id;
@@ -833,103 +871,9 @@ body::after {
     }
     modal.appendChild(milestones);
 
-    // Contacts
+    // Contacts — email/LinkedIn drafting, call notes, and touchpoint history
+    // now live per-contact inside this section (see buildContactsSection).
     modal.appendChild(buildContactsSection(id, c));
-
-    // Email generator
-    const emailSec = document.createElement('div');
-    emailSec.className = 'profile-section';
-    const eEyebrow = document.createElement('div');
-    eEyebrow.className = 'profile-eyebrow';
-    eEyebrow.textContent = 'Email';
-    emailSec.appendChild(eEyebrow);
-
-    const eFrameworkArea = document.createElement('textarea');
-    eFrameworkArea.className = 'framework-textarea';
-    eFrameworkArea.placeholder = 'Paste an email framework/template here (optional) — reused for every company. Leave blank to let the AI use a default cold-email structure.';
-    eFrameworkArea.value = loadStr(FRAMEWORK_EMAIL_KEY);
-    eFrameworkArea.addEventListener('blur', () => saveStr(FRAMEWORK_EMAIL_KEY, eFrameworkArea.value));
-    emailSec.appendChild(eFrameworkArea);
-
-    const eGenBtn = document.createElement('button');
-    eGenBtn.className = 'gm-add';
-    eGenBtn.type = 'button';
-    eGenBtn.textContent = '✨ Generate Email';
-    eGenBtn.addEventListener('click', () => generateEmail(id, eGenBtn));
-    emailSec.appendChild(eGenBtn);
-
-    if (c.emails && c.emails.length) {
-      const latest = c.emails[c.emails.length - 1];
-      const box = document.createElement('div');
-      box.className = 'generated-box';
-      const subj = document.createElement('div');
-      subj.className = 'generated-subject';
-      subj.textContent = latest.subject;
-      const body = document.createElement('div');
-      body.className = 'generated-body';
-      body.textContent = latest.body;
-      const foot = document.createElement('div');
-      foot.className = 'generated-foot';
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'mini-btn';
-      copyBtn.type = 'button';
-      copyBtn.textContent = '📋 Copy';
-      copyBtn.addEventListener('click', () => copyText(latest.subject + '\n\n' + latest.body, copyBtn));
-      foot.appendChild(copyBtn);
-      box.append(subj, body, foot);
-      emailSec.appendChild(box);
-
-      if (c.emails.length > 1) {
-        emailSec.appendChild(buildHistoryToggle(c.emails.slice(0, -1).reverse(), (e) => e.subject + '\n' + e.body));
-      }
-    }
-    modal.appendChild(emailSec);
-
-    // LinkedIn generator
-    const liSec = document.createElement('div');
-    liSec.className = 'profile-section';
-    const lEyebrow = document.createElement('div');
-    lEyebrow.className = 'profile-eyebrow';
-    lEyebrow.textContent = 'LinkedIn';
-    liSec.appendChild(lEyebrow);
-
-    const lFrameworkArea = document.createElement('textarea');
-    lFrameworkArea.className = 'framework-textarea';
-    lFrameworkArea.placeholder = 'Paste a LinkedIn message framework here (optional) — reused for every company.';
-    lFrameworkArea.value = loadStr(FRAMEWORK_LINKEDIN_KEY);
-    lFrameworkArea.addEventListener('blur', () => saveStr(FRAMEWORK_LINKEDIN_KEY, lFrameworkArea.value));
-    liSec.appendChild(lFrameworkArea);
-
-    const lGenBtn = document.createElement('button');
-    lGenBtn.className = 'gm-add';
-    lGenBtn.type = 'button';
-    lGenBtn.textContent = '✨ Generate LinkedIn Message';
-    lGenBtn.addEventListener('click', () => generateLinkedin(id, lGenBtn));
-    liSec.appendChild(lGenBtn);
-
-    if (c.linkedin && c.linkedin.length) {
-      const latest = c.linkedin[c.linkedin.length - 1];
-      const box = document.createElement('div');
-      box.className = 'generated-box';
-      const body = document.createElement('div');
-      body.className = 'generated-body';
-      body.textContent = latest.body;
-      const foot = document.createElement('div');
-      foot.className = 'generated-foot';
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'mini-btn';
-      copyBtn.type = 'button';
-      copyBtn.textContent = '📋 Copy';
-      copyBtn.addEventListener('click', () => copyText(latest.body, copyBtn));
-      foot.appendChild(copyBtn);
-      box.append(body, foot);
-      liSec.appendChild(box);
-
-      if (c.linkedin.length > 1) {
-        liSec.appendChild(buildHistoryToggle(c.linkedin.slice(0, -1).reverse(), (m) => m.body));
-      }
-    }
-    modal.appendChild(liSec);
   }
 
   const TOUCHPOINT_TYPES = ['Email', 'Call', 'LinkedIn', 'Meeting', 'Other'];
@@ -941,6 +885,29 @@ body::after {
     eyebrow.className = 'profile-eyebrow';
     eyebrow.textContent = 'Contacts';
     sec.appendChild(eyebrow);
+
+    // Global frameworks — pasted once, reused for every draft on every contact.
+    const fwBlock = document.createElement('div');
+    fwBlock.className = 'framework-block';
+    const eLabel = document.createElement('div');
+    eLabel.className = 'mini-label';
+    eLabel.textContent = 'Email framework (optional, used for every draft)';
+    const eFrameworkArea = document.createElement('textarea');
+    eFrameworkArea.className = 'framework-textarea';
+    eFrameworkArea.placeholder = 'Paste an email framework/template here — leave blank to use a research-backed default cold-email structure.';
+    eFrameworkArea.value = loadStr(FRAMEWORK_EMAIL_KEY);
+    eFrameworkArea.addEventListener('blur', () => saveStr(FRAMEWORK_EMAIL_KEY, eFrameworkArea.value));
+    const lLabel = document.createElement('div');
+    lLabel.className = 'mini-label';
+    lLabel.textContent = 'LinkedIn framework (optional, used for every draft)';
+    const lFrameworkArea = document.createElement('textarea');
+    lFrameworkArea.className = 'framework-textarea';
+    lFrameworkArea.style.marginBottom = '0';
+    lFrameworkArea.placeholder = 'Paste a LinkedIn message framework here — leave blank to use a research-backed default.';
+    lFrameworkArea.value = loadStr(FRAMEWORK_LINKEDIN_KEY);
+    lFrameworkArea.addEventListener('blur', () => saveStr(FRAMEWORK_LINKEDIN_KEY, lFrameworkArea.value));
+    fwBlock.append(eLabel, eFrameworkArea, lLabel, lFrameworkArea);
+    sec.appendChild(fwBlock);
 
     const contacts = c.contacts || [];
     if (contacts.length === 0) {
@@ -994,6 +961,113 @@ body::after {
         }
         card.appendChild(meta);
       }
+
+      // Draft buttons — generate for THIS contact specifically. Each success
+      // auto-logs an Email/LinkedIn touchpoint below.
+      const draftRow = document.createElement('div');
+      draftRow.className = 'draft-buttons-row';
+      const draftEmailBtn = document.createElement('button');
+      draftEmailBtn.className = 'mini-btn';
+      draftEmailBtn.type = 'button';
+      draftEmailBtn.textContent = '✍️ Draft Email';
+      draftEmailBtn.addEventListener('click', () => generateContactEmail(id, contact.id, draftEmailBtn));
+      const draftLiBtn = document.createElement('button');
+      draftLiBtn.className = 'mini-btn';
+      draftLiBtn.type = 'button';
+      draftLiBtn.textContent = '💬 Draft LinkedIn';
+      draftLiBtn.addEventListener('click', () => generateContactLinkedin(id, contact.id, draftLiBtn));
+      draftRow.append(draftEmailBtn, draftLiBtn);
+      card.appendChild(draftRow);
+
+      const genWrap = document.createElement('div');
+      genWrap.className = 'contact-generated';
+      const emails = contact.emails || [];
+      if (emails.length) {
+        const latest = emails[emails.length - 1];
+        const box = document.createElement('div');
+        box.className = 'generated-box';
+        const subj = document.createElement('div');
+        subj.className = 'generated-subject';
+        subj.textContent = latest.subject;
+        const body = document.createElement('div');
+        body.className = 'generated-body';
+        body.textContent = latest.body;
+        const foot = document.createElement('div');
+        foot.className = 'generated-foot';
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'mini-btn';
+        copyBtn.type = 'button';
+        copyBtn.textContent = '📋 Copy Email';
+        copyBtn.addEventListener('click', () => copyText(latest.subject + '\n\n' + latest.body, copyBtn));
+        foot.appendChild(copyBtn);
+        box.append(subj, body, foot);
+        genWrap.appendChild(box);
+        if (emails.length > 1) {
+          genWrap.appendChild(buildHistoryToggle(emails.slice(0, -1).reverse(), (e) => e.subject + '\n' + e.body));
+        }
+      }
+      const linkedinMsgs = contact.linkedin || [];
+      if (linkedinMsgs.length) {
+        const latest = linkedinMsgs[linkedinMsgs.length - 1];
+        const box = document.createElement('div');
+        box.className = 'generated-box';
+        const body = document.createElement('div');
+        body.className = 'generated-body';
+        body.textContent = latest.body;
+        const foot = document.createElement('div');
+        foot.className = 'generated-foot';
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'mini-btn';
+        copyBtn.type = 'button';
+        copyBtn.textContent = '📋 Copy LinkedIn';
+        copyBtn.addEventListener('click', () => copyText(latest.body, copyBtn));
+        foot.appendChild(copyBtn);
+        box.append(body, foot);
+        genWrap.appendChild(box);
+        if (linkedinMsgs.length > 1) {
+          genWrap.appendChild(buildHistoryToggle(linkedinMsgs.slice(0, -1).reverse(), (m) => m.body));
+        }
+      }
+      card.appendChild(genWrap);
+
+      // Call notes — a bigger, one-click place to jot notes while on a call.
+      const callToggle = document.createElement('button');
+      callToggle.className = 'mini-btn';
+      callToggle.type = 'button';
+      const isOpen = openCallPanels.has(contact.id);
+      callToggle.textContent = isOpen ? '📞 Hide call notes' : '📞 Log Call';
+      callToggle.style.marginTop = '10px';
+      callToggle.addEventListener('click', () => {
+        if (openCallPanels.has(contact.id)) openCallPanels.delete(contact.id);
+        else openCallPanels.add(contact.id);
+        renderModal(id);
+      });
+      card.appendChild(callToggle);
+
+      if (isOpen) {
+        const panel = document.createElement('div');
+        panel.className = 'call-panel';
+        const callArea = document.createElement('textarea');
+        callArea.className = 'call-notes-textarea';
+        callArea.placeholder = 'Notes while calling ' + contact.name.split(' ')[0] + '…';
+        const saveCallBtn = document.createElement('button');
+        saveCallBtn.className = 'gm-add';
+        saveCallBtn.type = 'button';
+        saveCallBtn.textContent = 'Save Call Note';
+        saveCallBtn.addEventListener('click', () => {
+          if (!callArea.value.trim()) return;
+          logCallNote(id, contact.id, callArea.value);
+          openCallPanels.delete(contact.id);
+        });
+        panel.append(callArea, saveCallBtn);
+        card.appendChild(panel);
+      }
+
+      const actLabel = document.createElement('div');
+      actLabel.className = 'mini-label';
+      actLabel.style.marginTop = '12px';
+      actLabel.textContent = 'Activity';
+      card.appendChild(actLabel);
 
       const tpList = document.createElement('div');
       tpList.className = 'touchpoint-list';
