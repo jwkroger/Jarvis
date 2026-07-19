@@ -96,24 +96,30 @@
   opacity: 0.85;
 }
 
-/* Bottom tab bar — Instagram-style */
+/* Bottom tab bar — Instagram-style, horizontally scrollable so every
+   dashboard fits without squeezing on narrow screens. */
 .bottombar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
-  display: flex; justify-content: space-around; align-items: stretch;
-  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+  display: flex; justify-content: flex-start; align-items: stretch;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; -ms-overflow-style: none;
+  padding: 6px max(6px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-right));
   background: #0a0a0b;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
 }
+.bottombar::-webkit-scrollbar { display: none; }
+@media (min-width: 720px) { .bottombar { justify-content: center; } }
 .bottombar-tab {
-  flex: 1;
+  flex: 0 0 auto; width: 60px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 3px;
-  padding: 6px 0 4px;
+  padding: 6px 4px 4px;
   text-decoration: none;
   color: rgba(255, 255, 255, 0.45);
-  font-size: 10px; font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 9.5px; font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
   transition: color 0.15s;
 }
@@ -144,8 +150,8 @@ body.has-bottombar {
   .topbar-water-add { width: 40px; font-size: 18px; }
   .topbar-finance-btn { width: 40px; height: 38px; }
   .topbar-finance-icon { font-size: 18px; }
-  .bottombar-tab-icon { font-size: 22px; }
-  .bottombar-tab { font-size: 10px; }
+  .bottombar-tab-icon { font-size: 21px; }
+  .bottombar-tab { font-size: 9px; width: 54px; }
 }
 
 /* === Global mobile lockdown ===
@@ -216,13 +222,37 @@ body.topbar-modal-open {
     <span class="bottombar-tab-icon">🏠</span>
     <span>Main</span>
   </a>
+  <a href="gym.html" class="bottombar-tab" data-page="fitness">
+    <span class="bottombar-tab-icon">💪</span>
+    <span>Fitness</span>
+  </a>
   <a href="health.html" class="bottombar-tab" data-page="health">
     <span class="bottombar-tab-icon">💊</span>
     <span>Health</span>
   </a>
-  <a href="gym.html" class="bottombar-tab" data-page="fitness">
-    <span class="bottombar-tab-icon">💪</span>
-    <span>Fitness</span>
+  <a href="po-water.html" class="bottombar-tab" data-page="water">
+    <span class="bottombar-tab-icon">💧</span>
+    <span>Water</span>
+  </a>
+  <a href="finance.html" class="bottombar-tab" data-page="finance">
+    <span class="bottombar-tab-icon">📊</span>
+    <span>Finance</span>
+  </a>
+  <a href="caffeine.html" class="bottombar-tab" data-page="caffeine">
+    <span class="bottombar-tab-icon">☕</span>
+    <span>Caffeine</span>
+  </a>
+  <a href="nova-lite.html" class="bottombar-tab" data-page="nova">
+    <span class="bottombar-tab-icon">🧠</span>
+    <span>Nova</span>
+  </a>
+  <a href="pt.html" class="bottombar-tab" data-page="pt">
+    <span class="bottombar-tab-icon">🏋️</span>
+    <span>PT</span>
+  </a>
+  <a href="evotix.html" class="bottombar-tab" data-page="evotix">
+    <span class="bottombar-tab-icon">💼</span>
+    <span>Evotix</span>
   </a>
 </nav>
 `;
@@ -245,6 +275,12 @@ body.topbar-modal-open {
     const p = (window.location.pathname || '').toLowerCase();
     if (p.endsWith('health.html')) return 'health';
     if (p.endsWith('gym.html')) return 'fitness';
+    if (p.endsWith('po-water.html')) return 'water';
+    if (p.endsWith('finance.html')) return 'finance';
+    if (p.endsWith('caffeine.html')) return 'caffeine';
+    if (p.endsWith('nova-lite.html')) return 'nova';
+    if (p.endsWith('pt.html')) return 'pt';
+    if (p.endsWith('evotix.html') || p.endsWith('outreach.html')) return 'evotix';
     return 'main'; // index.html, /, or anything else falls back to main
   }
 
@@ -265,11 +301,19 @@ body.topbar-modal-open {
     bottomWrap.innerHTML = bottombarHtml.trim();
     document.body.appendChild(bottomWrap.firstChild);
 
-    // Highlight the active bottom tab.
+    // Highlight the active bottom tab, and scroll it into view — the bar is
+    // horizontally scrollable now that it holds every dashboard, so on a
+    // narrow phone the active tab can otherwise load off-screen.
     const active = currentPageKey();
+    let activeTabEl = null;
     document.querySelectorAll('.bottombar-tab').forEach((t) => {
-      t.classList.toggle('active', t.getAttribute('data-page') === active);
+      const isActive = t.getAttribute('data-page') === active;
+      t.classList.toggle('active', isActive);
+      if (isActive) activeTabEl = t;
     });
+    if (activeTabEl) {
+      activeTabEl.scrollIntoView({ behavior: 'instant', inline: 'center', block: 'nearest' });
+    }
 
     // Reserve room above the fixed bottom bar so page content can scroll
     // past it without being hidden.
