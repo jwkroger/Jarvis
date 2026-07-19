@@ -152,6 +152,12 @@ main {
 }
 .coach-apply-btn:hover { background: rgba(107,227,164,0.22); }
 .coach-apply-btn:disabled { opacity: 0.6; cursor: default; }
+.coach-logged-tag {
+  display: inline-block; margin-top: 8px;
+  font-size: 11.5px; font-weight: 700; padding: 7px 11px; border-radius: 8px;
+  border: 1px solid rgba(107,227,164,0.45); background: rgba(107,227,164,0.14);
+  color: #6BE3A4;
+}
 
 /* ===== Today's Macros ===== */
 .nutri-ring-wrap { position: relative; width: 200px; max-width: 70%; margin: 0 auto 22px; aspect-ratio: 1; }
@@ -271,12 +277,13 @@ main {
     <div class="section-title">Macro Coach</div>
     <div class="gm-card">
       <div class="nova-messages" id="coachMessages">
-        <div class="nova-msg nova-msg-nova">Hey — I'm your macro coach. I can see your profile and weight goal from the dashboard. Ask me anything, or tap a starter below.</div>
+        <div class="nova-msg nova-msg-nova">Hey — I'm your macro coach. I can see your profile and weight goal from the dashboard. Ask me anything, tap a starter below, or just tell me what you ate and I'll log it for you.</div>
       </div>
       <div class="nova-suggestions" id="coachSuggestions">
         <button type="button" class="nova-chip" data-q="Suggest my daily macro targets based on my profile and weight goal.">Suggest my macros</button>
         <button type="button" class="nova-chip" data-q="Why these numbers? Walk me through the math.">Why these numbers?</button>
         <button type="button" class="nova-chip" data-q="I'm not hitting my weight goal pace — what should change?">Adjust my plan</button>
+        <button type="button" class="nova-chip" data-q="I just had a chicken burrito for lunch.">Log something I ate</button>
       </div>
       <div class="nova-composer">
         <textarea id="coachInput" class="nova-input" rows="1" placeholder="Ask your macro coach…"></textarea>
@@ -542,7 +549,7 @@ main {
 
       const icon = document.createElement('span');
       icon.className = 'nutri-log-icon';
-      icon.textContent = entry.source === 'photo' ? '📷' : '✏️';
+      icon.textContent = entry.source === 'photo' ? '📷' : (entry.source === 'chat' ? '💬' : '✏️');
 
       const body = document.createElement('div');
       body.className = 'nutri-log-body';
@@ -579,23 +586,31 @@ main {
     const suggEl = document.getElementById('coachSuggestions');
     const convo = [];
 
-    function addBubble(role, text, suggestion) {
+    function addBubble(role, text, opts) {
+      opts = opts || {};
       const wrap = document.createElement('div');
       wrap.className = 'nova-msg nova-msg-' + role;
       wrap.textContent = text;
-      if (suggestion) {
+      if (opts.suggestion) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'coach-apply-btn';
-        btn.textContent = 'Apply suggested macros → ' + Math.round(suggestion.calories) + ' kcal · '
-          + Math.round(suggestion.protein_g) + 'P / ' + Math.round(suggestion.carbs_g) + 'C / ' + Math.round(suggestion.fat_g) + 'F';
+        btn.textContent = 'Apply suggested macros → ' + Math.round(opts.suggestion.calories) + ' kcal · '
+          + Math.round(opts.suggestion.protein_g) + 'P / ' + Math.round(opts.suggestion.carbs_g) + 'C / ' + Math.round(opts.suggestion.fat_g) + 'F';
         btn.addEventListener('click', () => {
-          setTargets({ calories: suggestion.calories, protein: suggestion.protein_g, carbs: suggestion.carbs_g, fat: suggestion.fat_g });
+          setTargets({ calories: opts.suggestion.calories, protein: opts.suggestion.protein_g, carbs: opts.suggestion.carbs_g, fat: opts.suggestion.fat_g });
           btn.textContent = 'Applied ✓';
           btn.disabled = true;
         });
         wrap.appendChild(document.createElement('br'));
         wrap.appendChild(btn);
+      }
+      if (opts.logged) {
+        const tag = document.createElement('div');
+        tag.className = 'coach-logged-tag';
+        tag.textContent = '📥 Logged: ' + opts.logged.name + ' — ' + Math.round(opts.logged.calories) + ' kcal · '
+          + Math.round(opts.logged.protein) + 'P / ' + Math.round(opts.logged.carbs) + 'C / ' + Math.round(opts.logged.fat) + 'F';
+        wrap.appendChild(tag);
       }
       messagesEl.appendChild(wrap);
       messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -626,7 +641,23 @@ main {
         if (!res.ok) throw new Error((data && data.error) || ('Coach request failed (' + res.status + ')'));
         pending.remove();
         const reply = data.reply || '(no response)';
-        addBubble('nova', reply, data.hasSuggestion ? { calories: data.calories, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g } : null);
+
+        let logged = null;
+        if (data.logsFood) {
+          logged = {
+            name: data.foodName || 'Food',
+            calories: Number(data.foodCalories) || 0,
+            protein: Number(data.foodProteinG) || 0,
+            carbs: Number(data.foodCarbsG) || 0,
+            fat: Number(data.foodFatG) || 0
+          };
+          addLogEntry(Object.assign({}, logged, { source: 'chat' }));
+        }
+
+        addBubble('nova', reply, {
+          suggestion: data.hasSuggestion ? { calories: data.calories, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g } : null,
+          logged: logged
+        });
         convo.push({ role: 'assistant', content: reply });
       } catch (e) {
         pending.classList.remove('nova-msg-loading');

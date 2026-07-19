@@ -3,13 +3,18 @@
 // Body: { messages: [{role, content}], profile: {...}, targets: {...}, today: {...} }
 // The nutrition dashboard's AI macro coach. Calls Claude with
 // ANTHROPIC_API_KEY held server-side only. Always replies via FORCED
-// TOOL USE so the client gets a clean { reply, hasSuggestion, calories,
-// protein_g, carbs_g, fat_g } shape — a suggestion is only ever applied
-// when the user clicks "Apply" on it client-side.
+// TOOL USE so the client gets a clean structured shape:
+//   { reply, hasSuggestion, calories, protein_g, carbs_g, fat_g,
+//     logsFood, foodName, foodCalories, foodProteinG, foodCarbsG, foodFatG }
+// A target suggestion is only ever applied when the user clicks "Apply"
+// client-side. A food-logging result (logsFood=true) is applied
+// immediately by the client — the user described eating something and
+// asked for it to be tracked, so there's no separate confirm step (they
+// can still delete the entry from today's log if the estimate is off).
 // ============================================================
 const COACH_TOOL = {
   name: 'nutrition_coach_reply',
-  description: 'Reply to the user in the nutrition chat, optionally proposing new daily macro targets.',
+  description: 'Reply to the user in the nutrition chat, optionally proposing new daily macro targets and/or logging food they said they ate.',
   input_schema: {
     type: 'object',
     properties: {
@@ -18,9 +23,16 @@ const COACH_TOOL = {
       calories:   { type: 'number', description: 'Suggested daily calorie target (kcal). 0 if hasSuggestion is false.' },
       protein_g:  { type: 'number', description: 'Suggested daily protein target in grams. 0 if hasSuggestion is false.' },
       carbs_g:    { type: 'number', description: 'Suggested daily carbohydrate target in grams. 0 if hasSuggestion is false.' },
-      fat_g:      { type: 'number', description: 'Suggested daily fat target in grams. 0 if hasSuggestion is false.' }
+      fat_g:      { type: 'number', description: 'Suggested daily fat target in grams. 0 if hasSuggestion is false.' },
+      logsFood:      { type: 'boolean', description: 'True only if the user described something specific they ate or drank in THIS message and you are logging it now.' },
+      foodName:      { type: 'string', description: 'Short name for what they ate (e.g. "Chicken burrito", "Turkey sandwich + apple"). Empty if logsFood is false.' },
+      foodCalories:  { type: 'number', description: 'Estimated total calories (kcal) for what they described. 0 if logsFood is false.' },
+      foodProteinG:  { type: 'number', description: 'Estimated grams of protein.' },
+      foodCarbsG:    { type: 'number', description: 'Estimated grams of carbohydrate.' },
+      foodFatG:      { type: 'number', description: 'Estimated grams of fat.' }
     },
-    required: ['reply', 'hasSuggestion', 'calories', 'protein_g', 'carbs_g', 'fat_g']
+    required: ['reply', 'hasSuggestion', 'calories', 'protein_g', 'carbs_g', 'fat_g',
+      'logsFood', 'foodName', 'foodCalories', 'foodProteinG', 'foodCarbsG', 'foodFatG']
   }
 };
 
@@ -53,6 +65,19 @@ function buildSystem(profile, targets, today) {
     + "5. Round calories to the nearest 10 and grams to the nearest 1.\n"
     + "If the user is just chatting or asking a question with no target change needed, set "
     + "hasSuggestion=false and leave the numeric fields at 0.\n\n"
+    + "When the user tells you they ate or drank something (e.g. \"I just had a chicken burrito\", "
+    + "\"had 3 eggs and toast for breakfast\", \"drank a protein shake\") — set logsFood=true and "
+    + "estimate calories/protein/carbs/fat for a typical portion of what they described using common "
+    + "nutrition knowledge, the same way you would size up a photo of it. If they mention several "
+    + "items in one message, combine them into a single estimate under one descriptive foodName. "
+    + "Round calories to the nearest 10 and grams to the nearest 1. Say in your reply what you logged "
+    + "and the numbers, so it reads as confirmation (e.g. \"Logged: chicken burrito — ~650 kcal, "
+    + "35g protein, 70g carbs, 25g fat.\"), and mention how that leaves them relative to today's "
+    + "remaining targets if targets are set. If the portion size is ambiguous, make a reasonable "
+    + "assumption and note it briefly rather than asking a clarifying question first — they can "
+    + "always delete the entry if it's off. Do not set logsFood=true for hypothetical questions "
+    + "(\"what if I had...\", \"how many calories in...\") — only for something they say they actually "
+    + "ate or drank. If logsFood is false, leave foodName empty and the food numeric fields at 0.\n\n"
     + "Reply with your final answer only — no internal reasoning, no \"Based on...\" preamble.\n\n"
     + "Profile (JSON): " + JSON.stringify(profile || {}) + "\n"
     + "Current targets (JSON): " + JSON.stringify(targets || {}) + "\n"
