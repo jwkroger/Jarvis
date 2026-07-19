@@ -4274,7 +4274,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
   async function refreshPlaidAccounts() {
     try {
-      const res = await fetch('/api/plaid-accounts');
+      const res = await fetch('/api/plaid?action=accounts');
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data && data.error) || 'failed to load linked accounts');
       plaidInstitutions = data.institutions || [];
@@ -4291,7 +4291,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   async function disconnectPlaidItem(itemId) {
     if (!confirm('Disconnect this bank? You can always reconnect it later.')) return;
     try {
-      await fetch('/api/plaid-remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ item_id: itemId }) });
+      await fetch('/api/plaid?action=remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ item_id: itemId }) });
     } catch (e) {}
     refreshPlaidAccounts();
   }
@@ -4309,7 +4309,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
       const originalLabel = btn.textContent;
       btn.textContent = 'Connecting…';
       try {
-        const res = await fetch('/api/plaid-link-token', { method: 'POST' });
+        const res = await fetch('/api/plaid?action=link-token', { method: 'POST' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error((data && data.error) || 'could not start Plaid Link');
         if (typeof Plaid === 'undefined') throw new Error('Plaid script did not load');
@@ -4317,7 +4317,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
           token: data.link_token,
           onSuccess: async (public_token, metadata) => {
             try {
-              const ex = await fetch('/api/plaid-exchange', {
+              const ex = await fetch('/api/plaid?action=exchange', {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ public_token: public_token, institution_name: metadata && metadata.institution && metadata.institution.name })

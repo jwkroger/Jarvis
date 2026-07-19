@@ -393,7 +393,7 @@ body::after {
     if (!t || !t.access) return;
     async function whFetch(path, tok){
       const [p,qs]=path.split('?'); const params=new URLSearchParams(qs||''); params.set('path',p);
-      const r=await fetch('/api/whoop-data?'+params.toString(),{headers:{'Authorization':'Bearer '+tok.access,'Accept':'application/json'}});
+      const r=await fetch('/api/whoop?action=data&'+params.toString(),{headers:{'Authorization':'Bearer '+tok.access,'Accept':'application/json'}});
       if(!r.ok) throw new Error('whoop '+r.status); return r.json();
     }
     try{

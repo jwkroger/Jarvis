@@ -2231,7 +2231,7 @@ img, video, canvas, svg { max-width: 100%; }
   async function whoopRefresh(t) {
     if (!t.refresh) return null;
     try {
-      const r = await fetch('/api/whoop-refresh', {
+      const r = await fetch('/api/whoop?action=refresh', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: t.refresh })
       });
@@ -2247,7 +2247,7 @@ img, video, canvas, svg { max-width: 100%; }
   async function whoopFetch(path, t) {
     const [p, qs] = path.split('?');
     const params = new URLSearchParams(qs || ''); params.set('path', p);
-    const r = await fetch('/api/whoop-data?' + params.toString(), { headers: { 'Authorization': 'Bearer ' + t.access, 'Accept': 'application/json' } });
+    const r = await fetch('/api/whoop?action=data&' + params.toString(), { headers: { 'Authorization': 'Bearer ' + t.access, 'Accept': 'application/json' } });
     if (r.status === 401) { const n = await whoopRefresh(t); if (n) return whoopFetch(path, n); throw new Error('unauthorized'); }
     if (!r.ok) throw new Error('WHOOP ' + r.status);
     return await r.json();
