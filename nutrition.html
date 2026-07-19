@@ -161,14 +161,6 @@ main {
 }
 .nova-send:disabled { opacity: 0.4; cursor: default; }
 .nova-disclaimer { font-size: 10.5px; color: var(--text-quaternary); margin-top: 10px; text-align: center; }
-.coach-apply-btn {
-  display: inline-block; margin-top: 8px;
-  font-size: 11.5px; font-weight: 700; padding: 7px 11px; border-radius: 8px;
-  border: 1px solid rgba(107,227,164,0.45); background: rgba(107,227,164,0.14);
-  color: #6BE3A4; cursor: pointer; font-family: inherit;
-}
-.coach-apply-btn:hover { background: rgba(107,227,164,0.22); }
-.coach-apply-btn:disabled { opacity: 0.6; cursor: default; }
 .coach-logged-tag {
   display: inline-block; margin-top: 8px;
   font-size: 11.5px; font-weight: 700; padding: 7px 11px; border-radius: 8px;
@@ -899,19 +891,13 @@ main {
       const wrap = document.createElement('div');
       wrap.className = 'nova-msg nova-msg-' + role;
       wrap.textContent = text;
-      if (opts.suggestion) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'coach-apply-btn';
-        btn.textContent = 'Apply suggested macros → ' + Math.round(opts.suggestion.calories) + ' kcal · '
-          + Math.round(opts.suggestion.protein_g) + 'P / ' + Math.round(opts.suggestion.carbs_g) + 'C / ' + Math.round(opts.suggestion.fat_g) + 'F';
-        btn.addEventListener('click', () => {
-          setTargets({ calories: opts.suggestion.calories, protein: opts.suggestion.protein_g, carbs: opts.suggestion.carbs_g, fat: opts.suggestion.fat_g });
-          btn.textContent = 'Applied ✓';
-          btn.disabled = true;
-        });
+      if (opts.updated) {
+        const tag = document.createElement('div');
+        tag.className = 'coach-logged-tag';
+        tag.textContent = '🎯 Targets updated → ' + Math.round(opts.updated.calories) + ' kcal · '
+          + Math.round(opts.updated.protein_g) + 'P / ' + Math.round(opts.updated.carbs_g) + 'C / ' + Math.round(opts.updated.fat_g) + 'F';
         wrap.appendChild(document.createElement('br'));
-        wrap.appendChild(btn);
+        wrap.appendChild(tag);
       }
       if (opts.logged) {
         const tag = document.createElement('div');
@@ -962,10 +948,16 @@ main {
           addLogEntry(Object.assign({}, logged, { source: 'chat' }));
         }
 
-        addBubble('nova', reply, {
-          suggestion: data.hasSuggestion ? { calories: data.calories, protein_g: data.protein_g, carbs_g: data.carbs_g, fat_g: data.fat_g } : null,
-          logged: logged
-        });
+        // Target suggestions apply immediately (same as food logging) —
+        // the user already asked for them, so there's no separate confirm
+        // step; the tag under the reply shows exactly what changed.
+        let updated = null;
+        if (data.hasSuggestion) {
+          updated = { calories: Number(data.calories) || 0, protein_g: Number(data.protein_g) || 0, carbs_g: Number(data.carbs_g) || 0, fat_g: Number(data.fat_g) || 0 };
+          setTargets({ calories: updated.calories, protein: updated.protein_g, carbs: updated.carbs_g, fat: updated.fat_g });
+        }
+
+        addBubble('nova', reply, { updated: updated, logged: logged });
         convo.push({ role: 'assistant', content: reply });
       } catch (e) {
         pending.classList.remove('nova-msg-loading');
