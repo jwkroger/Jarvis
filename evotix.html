@@ -628,8 +628,9 @@ body::after {
   /*  shared "goals" store so SAOs logged here show up in the daily   */
   /*  Goals list / ticker on the Main page.                           */
   /* =============================================================== */
-  if (window.initCloudSync) {
-    window.initCloudSync({
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof initCloudSync !== 'function') return;
+    initCloudSync({
       appKey: 'evotix',
       syncedKeys: ['evotix:paychecks', 'evotix:saos'],
       syncedPrefixes: ['evotix:mit:'],
@@ -639,11 +640,11 @@ body::after {
         if (window.__mitReload) window.__mitReload();
       }
     });
-    window.initCloudSync({
+    initCloudSync({
       appKey: 'goals',
       syncedPrefixes: ['goals:', 'lifegoals_v1', 'lifegoals_period_meta_v1', 'lgdaily:', 'lgweekly:', 'lgmonthly:']
     });
-  }
+  });
 })();
 </script>
 </body>

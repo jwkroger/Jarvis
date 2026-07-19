@@ -540,8 +540,9 @@ body::after {
   render();
   window.__sessionsReload = render;
 
-  if (window.initCloudSync) {
-    window.initCloudSync({
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof initCloudSync !== 'function') return;
+    initCloudSync({
       appKey: 'pt',
       syncedKeys: [STORE_KEY, 'pt:content'],
       onApplied: function () {
@@ -549,7 +550,7 @@ body::after {
         if (window.__contentReload) window.__contentReload();
       }
     });
-  }
+  });
 })();
 </script>
 

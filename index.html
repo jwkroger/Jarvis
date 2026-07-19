@@ -1194,24 +1194,25 @@ body::after {
   window.addEventListener('focus', renderAll);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) renderAll(); });
 
-  if (window.initCloudSync) {
-    window.initCloudSync({
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof initCloudSync !== 'function') return;
+    initCloudSync({
       appKey: 'goals',
       syncedPrefixes: ['goals:', 'lifegoals_v1', 'lifegoals_period_meta_v1', 'lgdaily:', 'lgweekly:', 'lgmonthly:'],
       onApplied: renderAll
     });
-    window.initCloudSync({
+    initCloudSync({
       appKey: 'evotix',
       syncedKeys: ['evotix:saos'],
       syncedPrefixes: ['evotix:mit:'],
       onApplied: renderAll
     });
-    window.initCloudSync({
+    initCloudSync({
       appKey: 'pt',
       syncedKeys: ['pt:sessions'],
       onApplied: renderAll
     });
-  }
+  });
 })();
 </script>
 

@@ -849,13 +849,14 @@ main {
   window.addEventListener('focus', () => { renderMacros(); renderLog(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { renderMacros(); renderLog(); } });
 
-  if (window.initCloudSync) {
-    window.initCloudSync({
+  document.addEventListener('DOMContentLoaded', function () {
+    if (typeof initCloudSync !== 'function') return;
+    initCloudSync({
       appKey: 'nutrition',
       syncedPrefixes: ['nutrition:'],
       onApplied: function () { renderMacros(); renderLog(); }
     });
-  }
+  });
 })();
 </script>
 </body>
