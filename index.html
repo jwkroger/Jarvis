@@ -291,9 +291,9 @@ body::after {
 
 /* ===== Jarvis voice widget ===== */
 .jv-card { margin-bottom: 18px; }
-.jv-row { display: flex; align-items: center; gap: 16px; }
+.jv-row { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 .jv-orb {
-  --s: 54px; width: var(--s); height: var(--s); flex-shrink: 0; position: relative;
+  --s: 128px; width: var(--s); height: var(--s); flex-shrink: 0; position: relative;
   border: 0; border-radius: 50%; cursor: pointer; background: transparent; padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
@@ -319,8 +319,9 @@ body::after {
 .jv-orb[data-state="speak"] .jv-core { animation: jv-pulse 0.5s ease-in-out infinite; }
 @keyframes jv-spin { to { transform: rotate(360deg); } }
 @keyframes jv-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.16); } }
-.jv-body { flex: 1; min-width: 0; }
+.jv-body { min-width: 0; }
 .jv-line { color: var(--text-primary); font-size: 14.5px; line-height: 1.5; }
+.jv-line:empty { display: none; }
 .jv-hint { color: var(--text-tertiary); font-size: 11.5px; margin-top: 4px; display: none; }
 .jv-hint.show { display: block; }
 
@@ -474,13 +475,17 @@ body::after {
           <span class="jv-core"></span>
         </button>
         <div class="jv-body">
-          <div class="jv-line" id="jvLine">Get your morning briefing, or ask me anything.</div>
+          <div class="jv-line" id="jvLine"></div>
           <div class="jv-hint" id="jvHint"></div>
         </div>
       </div>
       <div class="jv-actions">
         <button class="jv-btn" id="jvBriefBtn" type="button">🌅 Daily Briefing</button>
         <button class="jv-btn" id="jvAskBtn" type="button">🎤 Ask Jarvis</button>
+      </div>
+      <div class="gm-input-wrap">
+        <input class="gm-input" id="jvTypeInput" type="text" placeholder="Or type to Jarvis — “I had a chicken burrito”, “log an opportunity with Acme”…" autocomplete="off">
+        <button class="gm-add" id="jvTypeSend" type="button">Send</button>
       </div>
     </div>
   </div>
@@ -573,24 +578,10 @@ body::after {
       </div>
     </a>
 
-    <!-- Small tile -->
-    <a class="tile" href="po-water.html" style="--accent:#60A5FA">
-      <div class="tile-top">
-        <span class="tile-num">·04</span>
-        <span class="tile-emoji">💧</span>
-      </div>
-      <div class="tile-spacer"></div>
-      <h2 class="tile-title">Water</h2>
-      <div class="tile-foot">
-        <span class="tile-sub">Hydration</span>
-        <span class="tile-arrow">→</span>
-      </div>
-    </a>
-
     <!-- Wide tile -->
     <a class="tile wide" href="finance.html" style="--accent:#F2C063">
       <div class="tile-top">
-        <span class="tile-num">·05</span>
+        <span class="tile-num">·04</span>
         <span class="tile-emoji">📊</span>
       </div>
       <div class="tile-spacer"></div>
@@ -604,7 +595,7 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="caffeine.html" style="--accent:#C9A36B">
       <div class="tile-top">
-        <span class="tile-num">·06</span>
+        <span class="tile-num">·05</span>
         <span class="tile-emoji">☕</span>
       </div>
       <div class="tile-spacer"></div>
@@ -618,7 +609,7 @@ body::after {
     <!-- Wide tile -->
     <a class="tile wide" href="nova-lite.html" style="--accent:#A78BFA">
       <div class="tile-top">
-        <span class="tile-num">·07</span>
+        <span class="tile-num">·06</span>
         <span class="tile-emoji">🧠</span>
       </div>
       <div class="tile-spacer"></div>
@@ -632,7 +623,7 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="pt.html" style="--accent:#FB7185">
       <div class="tile-top">
-        <span class="tile-num">·08</span>
+        <span class="tile-num">·07</span>
         <span class="tile-emoji">🏋️</span>
       </div>
       <div class="tile-spacer"></div>
@@ -646,7 +637,7 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="evotix.html" style="--accent:#38BDF8">
       <div class="tile-top">
-        <span class="tile-num">·09</span>
+        <span class="tile-num">·08</span>
         <span class="tile-emoji">💼</span>
       </div>
       <div class="tile-spacer"></div>
@@ -660,7 +651,7 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="nutrition.html" style="--accent:#BEF264">
       <div class="tile-top">
-        <span class="tile-num">·10</span>
+        <span class="tile-num">·09</span>
         <span class="tile-emoji">🥗</span>
       </div>
       <div class="tile-spacer"></div>
@@ -1232,6 +1223,16 @@ body::after {
       syncedKeys: ['pt:sessions'],
       onApplied: renderAll
     });
+    initCloudSync({
+      appKey: 'nutrition',
+      syncedPrefixes: ['nutrition:'],
+      onApplied: renderAll
+    });
+    initCloudSync({
+      appKey: 'health',
+      syncedKeys: ['po_water_v1'],
+      onApplied: renderAll
+    });
   });
 })();
 </script>
@@ -1243,7 +1244,133 @@ body::after {
   const jvHint = document.getElementById('jvHint');
   const jvBriefBtn = document.getElementById('jvBriefBtn');
   const jvAskBtn = document.getElementById('jvAskBtn');
+  const jvTypeInput = document.getElementById('jvTypeInput');
+  const jvTypeSend = document.getElementById('jvTypeSend');
   if (!orb) return;
+
+  // ---- act on the dashboard: log food/water, add a goal, log an Evotix ----
+  // ---- opportunity, or update a Life Goal — all from one Jarvis reply. ----
+  function jvDateToKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function jvActiveDate() {
+    const now = new Date();
+    if (now.getHours() < 6) { const d = new Date(now); d.setDate(d.getDate() - 1); return d; }
+    return now;
+  }
+  function jvWeekStartKey(d) {
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1 - day);
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diff);
+    return jvDateToKey(monday);
+  }
+  function jvMonthKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+  function jvLoad(k, f) { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? f : v; } catch (e) { return f; } }
+  function jvSave(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+  // Counter-type Life Goals that are also tallied by main.html's Daily/Weekly/
+  // Monthly checklist widget — bump that period's tally too so the two never drift apart.
+  const JV_COUNTER_CHECKLIST = {
+    opp10:       { period: 'monthly', itemId: 'opplog',    also: 'opp50' },
+    opp50:       { period: 'monthly', itemId: 'opplog',    also: 'opp10' },
+    clienttouch: { period: 'weekly',  itemId: 'clienttouch' },
+    guitarart:   { period: 'weekly',  itemId: 'guitarart' },
+    books:       { period: 'monthly', itemId: 'booklog' }
+  };
+  function jvBumpChecklistCounter(period, itemId, delta) {
+    const d = jvActiveDate();
+    const key = period === 'weekly' ? ('lgweekly:' + jvWeekStartKey(d)) : ('lgmonthly:' + jvMonthKey(d));
+    let s = jvLoad(key, null);
+    if (!s || typeof s !== 'object') s = { _v: 1, items: {} };
+    if (!s.items) s.items = {};
+    if (!s.items[itemId]) s.items[itemId] = { count: 0 };
+    s.items[itemId].count = Math.max(0, (s.items[itemId].count || 0) + delta);
+    jvSave(key, s);
+  }
+
+  function jvUpdateLifeGoal(id, rawValue) {
+    const goals = jvLoad('lifegoals_v1', []);
+    if (!Array.isArray(goals)) return;
+    const g = goals.find(x => x && x.id === id);
+    if (!g) return;
+    const delta = Number(rawValue) || 0;
+    if (g.kind === 'milestone') {
+      g.done = true;
+    } else if (g.kind === 'counter') {
+      const step = delta || 1;
+      g.current = Math.max(0, (g.current || 0) + step);
+      const map = JV_COUNTER_CHECKLIST[id];
+      if (map) {
+        jvBumpChecklistCounter(map.period, map.itemId, step);
+        if (map.also) {
+          const g2 = goals.find(x => x && x.id === map.also);
+          if (g2) g2.current = Math.max(0, (g2.current || 0) + step);
+        }
+      }
+    } else {
+      g.current = delta;
+    }
+    jvSave('lifegoals_v1', goals);
+  }
+
+  function applyJarvisAction(json) {
+    if (!json || !json.action || json.action === 'none') return;
+    try {
+      switch (json.action) {
+        case 'log_food': {
+          const key = 'nutrition:log:' + jvDateToKey(jvActiveDate());
+          const list = jvLoad(key, []);
+          list.push({
+            id: 'n_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            time: Date.now(),
+            name: json.foodName || 'Food (via Jarvis)',
+            calories: Number(json.foodCalories) || 0,
+            protein: Number(json.foodProteinG) || 0,
+            carbs: Number(json.foodCarbsG) || 0,
+            fat: Number(json.foodFatG) || 0,
+            source: 'jarvis'
+          });
+          jvSave(key, list);
+          break;
+        }
+        case 'log_opportunity': {
+          const dateStr = jvDateToKey(jvActiveDate());
+          const list = jvLoad('evotix:saos', []);
+          const note = json.opportunityNote || 'Opportunity logged (via Jarvis)';
+          list.push({ date: dateStr, note: note });
+          jvSave('evotix:saos', list);
+          const gk = 'goals:' + dateStr;
+          const goals = jvLoad(gk, []);
+          goals.push({ text: 'SAO: ' + note, done: true, doneAt: Date.now() });
+          jvSave(gk, goals);
+          break;
+        }
+        case 'add_goal': {
+          const d = jvActiveDate();
+          if (json.goalWhen === 'tomorrow') d.setDate(d.getDate() + 1);
+          const key = 'goals:' + jvDateToKey(d);
+          const list = jvLoad(key, []);
+          list.push({ text: json.goalText || 'New goal', done: false });
+          jvSave(key, list);
+          break;
+        }
+        case 'log_water': {
+          const state = jvLoad('po_water_v1', { logs: {} });
+          if (!state.logs) state.logs = {};
+          const dateStr = jvDateToKey(new Date()); // water uses the calendar date, matching topbar.js's addWater()
+          const n = Math.max(1, Math.round(Number(json.waterUnits) || 1));
+          state.logs[dateStr] = (state.logs[dateStr] || 0) + n;
+          jvSave('po_water_v1', state);
+          break;
+        }
+        case 'update_life_goal': {
+          if (json.lifeGoalId) jvUpdateLifeGoal(json.lifeGoalId, json.lifeGoalValue);
+          break;
+        }
+        default: return;
+      }
+      window.dispatchEvent(new Event('storage')); // triggers renderAll() on this page's other listeners
+    } catch (e) { /* speech reply already shown regardless of whether the write succeeded */ }
+  }
 
   const GREET_KEY = 'jarvis:lastGreetDate';
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1332,6 +1459,7 @@ body::after {
         showHint(json.error);
         return null;
       }
+      applyJarvisAction(json);
       speak(json.text);
       return json.text;
     } catch(e) {
@@ -1389,7 +1517,7 @@ body::after {
     rec.onerror = (e) => {
       activeRec = null;
       setState('idle'); busy = false;
-      if (e.error === 'aborted') { jvLine.textContent = lastSpokenText || 'Get your morning briefing, or ask me anything.'; return; }
+      if (e.error === 'aborted') { jvLine.textContent = lastSpokenText || ''; return; }
       jvLine.textContent = RECOGNITION_ERRORS[e.error] || 'Didn’t catch that — tap to try again.';
     };
     rec.onend = () => {
@@ -1437,6 +1565,26 @@ body::after {
     if (busy) return;
     startListening();
   });
+
+  // ---- typed input: same brain as voice, just skips speech recognition ----
+  function submitTyped() {
+    const text = jvTypeInput.value.trim();
+    if (!text || busy) return;
+    if ('speechSynthesis' in window && window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+    if (activeRec) {
+      const rec = activeRec;
+      activeRec = null;
+      rec.onresult = null; rec.onerror = null; rec.onend = null;
+      try { rec.abort(); } catch(e) {}
+    }
+    jvTypeInput.value = '';
+    busy = true;
+    setState('think');
+    jvLine.textContent = text;
+    askJarvis(text);
+  }
+  jvTypeSend.addEventListener('click', submitTyped);
+  jvTypeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitTyped(); } });
 
   // ---- boot: auto-speak the briefing once per day, otherwise sit idle and ready ----
   if (!alreadyGreetedToday()) {
