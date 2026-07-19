@@ -1069,11 +1069,19 @@ body::after {
 
   function pickVoice(){
     if (!voicesCache.length) return null;
-    const prefs = ['Daniel', 'Google UK English Male', 'Microsoft David', 'Microsoft Guy', 'Alex', 'Fred'];
+    // Ordered for a calm, well-spoken British male voice, closest free approximation of Jarvis.
+    // "Ryan" (Edge's online neural UK voice) and "Oliver"/"Daniel" (macOS/iOS UK voices) are the
+    // best-quality options when present; the rest are fallbacks in roughly descending quality.
+    const prefs = [
+      'Ryan', 'Oliver', 'Daniel', 'George', 'Arthur',
+      'Google UK English Male', 'Microsoft David', 'Microsoft Guy', 'Alex', 'Fred',
+    ];
     for (const name of prefs) {
       const v = voicesCache.find(v => v.name.includes(name));
       if (v) return v;
     }
+    const gb = voicesCache.filter(v => /^en-GB/i.test(v.lang));
+    if (gb.length) return gb[0];
     const en = voicesCache.filter(v => /^en/i.test(v.lang));
     return en[0] || voicesCache[0] || null;
   }
@@ -1084,7 +1092,7 @@ body::after {
     if (!('speechSynthesis' in window)) { setState('idle'); showHint('This browser can’t play speech — replies will show as text.'); return; }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.0; u.pitch = 0.9;
+    u.rate = 0.93; u.pitch = 0.85; // measured pace, slightly lower register — calm and unhurried
     const voice = pickVoice();
     if (voice) u.voice = voice;
     u.onstart = () => setState('speak');
