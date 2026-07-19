@@ -225,6 +225,13 @@ body::after {
   color: var(--text-tertiary); white-space: nowrap;
 }
 .content-hook-tag::before { content: '💡 '; }
+.content-format-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-secondary); background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+}
 .content-idea-text { font-size: 13.5px; color: var(--text-primary); line-height: 1.4; }
 .content-script {
   width: 100%; min-height: 90px; resize: vertical;
@@ -301,6 +308,12 @@ body::after {
           <option>Behind the Scenes</option>
           <option>Personal Brand</option>
           <option>Other</option>
+        </select>
+        <select class="gm-input" id="cFormat" style="flex:0 0 120px">
+          <option>Reel</option>
+          <option>Carousel</option>
+          <option>Photo</option>
+          <option>Story</option>
         </select>
         <input class="gm-input" id="cIdeaText" type="text" placeholder="New idea / hook…" autocomplete="off">
         <button class="gm-add" id="cIdeaAdd" type="button">+ Idea</button>
@@ -546,6 +559,8 @@ body::after {
 
   const STORE_KEY = 'pt:content';
   const PILLARS = ['Transformation', 'BFT Highlight', 'Online Coaching', 'Education / Tips', 'Behind the Scenes', 'Personal Brand', 'Other'];
+  const FORMATS = ['Reel', 'Carousel', 'Photo', 'Story'];
+  const FORMAT_ICON = { Reel: '🎬', Carousel: '🖼️', Photo: '📸', Story: '⚡' };
   const STAGES = ['idea', 'scripted', 'filmed', 'posted'];
 
   const $ = (id) => document.getElementById(id);
@@ -613,6 +628,7 @@ body::after {
           id: newId(),
           pillar: PILLARS.includes(x.pillar) ? x.pillar : 'Other',
           hook: String(x.hook || '').trim(),
+          format: FORMATS.includes(x.format) ? x.format : 'Reel',
           idea: String(x.idea || '').trim(),
           script: '',
           stage: 'idea',
@@ -635,7 +651,7 @@ body::after {
     btnEl.disabled = true;
     btnEl.textContent = 'Writing…';
     try {
-      const data = await callContentApi({ type: 'script', idea: card.idea, pillar: card.pillar });
+      const data = await callContentApi({ type: 'script', idea: card.idea, pillar: card.pillar, format: card.format });
       const text = (data.text || '').trim();
       textareaEl.value = text;
       updateCard(card.id, (c) => { c.script = text; });
@@ -657,6 +673,12 @@ body::after {
   function cardHead(card) {
     const head = document.createElement('div');
     head.className = 'content-card-head';
+    if (card.format) {
+      const fmt = document.createElement('span');
+      fmt.className = 'content-format-tag';
+      fmt.textContent = (FORMAT_ICON[card.format] || '') + ' ' + card.format;
+      head.appendChild(fmt);
+    }
     head.appendChild(pillarChip(card.pillar));
     if (card.hook) {
       const tag = document.createElement('span');
@@ -878,6 +900,8 @@ body::after {
     items.push({
       id: newId(),
       pillar: $('cPillar').value,
+      format: $('cFormat').value,
+      hook: '',
       idea: text,
       script: '',
       stage: 'idea',
