@@ -212,6 +212,7 @@ body::after {
   background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07);
   border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px;
 }
+.content-card-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .content-pillar {
   display: inline-flex; align-self: flex-start;
   font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
@@ -219,6 +220,11 @@ body::after {
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
   padding: 3px 8px; border-radius: 999px;
 }
+.content-hook-tag {
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.03em;
+  color: var(--text-tertiary); white-space: nowrap;
+}
+.content-hook-tag::before { content: '💡 '; }
 .content-idea-text { font-size: 13.5px; color: var(--text-primary); line-height: 1.4; }
 .content-script {
   width: 100%; min-height: 90px; resize: vertical;
@@ -606,6 +612,7 @@ body::after {
         list.push({
           id: newId(),
           pillar: PILLARS.includes(x.pillar) ? x.pillar : 'Other',
+          hook: String(x.hook || '').trim(),
           idea: String(x.idea || '').trim(),
           script: '',
           stage: 'idea',
@@ -645,6 +652,19 @@ body::after {
     chip.className = 'content-pillar';
     chip.textContent = pillar;
     return chip;
+  }
+
+  function cardHead(card) {
+    const head = document.createElement('div');
+    head.className = 'content-card-head';
+    head.appendChild(pillarChip(card.pillar));
+    if (card.hook) {
+      const tag = document.createElement('span');
+      tag.className = 'content-hook-tag';
+      tag.textContent = card.hook;
+      head.appendChild(tag);
+    }
+    return head;
   }
 
   function buildIdeaCard(card) {
@@ -689,7 +709,7 @@ body::after {
     del.addEventListener('click', () => deleteCard(card.id));
     foot.append(document.createElement('span'), del);
 
-    el.append(pillarChip(card.pillar), idea, script, actions, foot);
+    el.append(cardHead(card), idea, script, actions, foot);
     return el;
   }
 
@@ -729,7 +749,7 @@ body::after {
     del.addEventListener('click', () => deleteCard(card.id));
     foot.append(document.createElement('span'), del);
 
-    el.append(pillarChip(card.pillar), idea, script, actions, foot);
+    el.append(cardHead(card), idea, script, actions, foot);
     return el;
   }
 
@@ -790,7 +810,7 @@ body::after {
     del.addEventListener('click', () => deleteCard(card.id));
     foot.append(document.createElement('span'), del);
 
-    el.append(pillarChip(card.pillar), idea, checklist, actions, foot);
+    el.append(cardHead(card), idea, checklist, actions, foot);
     return el;
   }
 
@@ -825,7 +845,7 @@ body::after {
     btnWrap.append(reopen, del);
 
     foot.append(meta, btnWrap);
-    el.append(pillarChip(card.pillar), idea, foot);
+    el.append(cardHead(card), idea, foot);
     return el;
   }
 
