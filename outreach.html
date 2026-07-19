@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="lock.js"></script>
+<script src="/api/config"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050506">
+<title>Outreach · Evotix</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="sync.js" defer></script>
+<script src="topbar.js" defer></script>
+
+<style>
+:root {
+  --text-primary: #FAFAFA;
+  --text-secondary: #B8B6B0;
+  --text-tertiary: #76746E;
+  --success: #6BE3A4;
+  --warning: #F2C063;
+  --danger:  #FF6B6B;
+  --accent:  #38BDF8;
+  --font: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: #050506;
+  color: var(--text-secondary);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  min-height: 100vh; position: relative; overflow-x: hidden;
+  padding: max(28px, env(safe-area-inset-top)) 20px 60px;
+}
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background:
+    radial-gradient(circle at 82% 14%, rgba(224,118,88,0.16), transparent 45%),
+    radial-gradient(circle at 18% 90%, rgba(180,180,200,0.06), transparent 50%);
+  filter: blur(40px); pointer-events: none; z-index: -2;
+  animation: drift 36s ease-in-out infinite alternate;
+}
+body::after {
+  content: ''; position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.014) 1px, transparent 1px);
+  background-size: 3px 3px; pointer-events: none; z-index: -1;
+}
+@keyframes drift { 0%{transform:translate3d(0,0,0)} 100%{transform:translate3d(-22px,14px,0)} }
+
+.page { max-width: 1100px; margin: 0 auto; }
+
+.hub-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.dash-title {
+  margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.025em;
+  background: linear-gradient(180deg, #FFFFFF 0%, #C7C4BC 120%);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent; color: transparent;
+}
+@media (max-width: 480px) { .dash-title { font-size: 22px; } }
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: var(--text-tertiary);
+  text-decoration: none; transition: color 0.15s;
+}
+.back-link:hover { color: var(--text-primary); }
+
+.section { margin-top: 8px; }
+.section-title {
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.section-title::before { content: ''; width: 18px; height: 1px; background: var(--text-tertiary); opacity: 0.6; }
+.section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(255,255,255,0.08), transparent); }
+
+.gm-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(24px) saturate(1.2);
+  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+  overflow: hidden;
+}
+
+.gm-input-wrap {
+  display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+}
+.gm-input {
+  flex: 1; min-width: 140px;
+  padding: 11px 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; background: rgba(0,0,0,0.28);
+  color: var(--text-primary);
+  font-family: inherit; font-size: 14px; outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.gm-input::placeholder { color: var(--text-tertiary); }
+.gm-input:focus { border-color: rgba(255,255,255,0.28); background: rgba(0,0,0,0.36); }
+.gm-add {
+  padding: 11px 20px; border: 0; border-radius: 12px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #E8E5DD 100%);
+  color: #0A0A0B; font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.35), 0 8px 22px rgba(0,0,0,0.25);
+  transition: transform 0.1s, filter 0.15s;
+}
+.gm-add:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.gm-add:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
+.gm-status { font-size: 11.5px; color: var(--text-tertiary); min-height: 16px; margin-top: 8px; }
+
+.company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.empty-state { text-align: center; font-size: 12px; font-style: italic; color: var(--text-tertiary); padding: 20px 0; }
+
+.company-card {
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 14px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.company-card:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); transform: translateY(-2px); }
+.company-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.company-name { font-size: 14.5px; font-weight: 700; color: var(--text-primary); }
+.company-del {
+  border: 0; background: transparent; color: var(--text-tertiary);
+  font-size: 16px; cursor: pointer; padding: 0 2px; opacity: 0.5; flex-shrink: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.company-del:hover { opacity: 1; color: var(--danger); }
+.company-summary {
+  font-size: 12px; color: var(--text-tertiary); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.company-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.milestone-pill {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.10); color: var(--text-tertiary);
+}
+.milestone-pill.done { background: rgba(107,227,164,0.12); border-color: rgba(107,227,164,0.32); color: var(--success); }
+.win-notes-preview { font-size: 11.5px; color: var(--text-tertiary); font-style: italic; }
+
+/* ===== Profile modal ===== */
+.modal-bg {
+  position: fixed; inset: 0; z-index: 130; display: none;
+  align-items: flex-start; justify-content: center; padding: 24px 16px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.modal-bg.show { display: flex; }
+.modal {
+  width: 100%; max-width: 640px;
+  background: #0e0e10; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px; padding: 22px; box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+  margin-bottom: 24px;
+}
+.modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.modal-title { font-size: 19px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em; }
+.modal-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 3px; }
+.modal-close { border: 0; background: transparent; color: var(--text-tertiary); font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; flex-shrink: 0; }
+.modal-close:hover { color: var(--text-primary); }
+
+.profile-section { margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.07); }
+.profile-eyebrow {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.research-summary { font-size: 13.5px; color: var(--text-secondary); line-height: 1.55; }
+.research-list { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.news-item { font-size: 13px; color: var(--text-secondary); line-height: 1.5; margin-bottom: 8px; }
+.news-headline { color: var(--text-primary); font-weight: 600; }
+.research-sources { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; }
+.research-sources a { font-size: 10.5px; color: var(--text-tertiary); text-decoration: none; }
+.research-sources a:hover { color: var(--accent); }
+.research-empty { font-size: 12.5px; color: var(--text-tertiary); font-style: italic; }
+.mini-btn {
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04);
+  color: var(--text-primary); font-family: inherit; font-size: 11px; font-weight: 700;
+  padding: 6px 11px; border-radius: 9px; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s;
+}
+.mini-btn:hover { background: rgba(255,255,255,0.08); }
+.mini-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.milestone-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 13px; border-radius: 11px;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 8px; cursor: pointer; user-select: none;
+}
+.milestone-row input { accent-color: var(--accent); width: 17px; height: 17px; cursor: pointer; flex-shrink: 0; }
+.milestone-row .ml-label { font-size: 13.5px; color: var(--text-primary); font-weight: 600; flex: 1; }
+.milestone-row .ml-hint { font-size: 10.5px; color: var(--text-tertiary); }
+
+.win-notes-textarea {
+  width: 100%; min-height: 80px; resize: vertical;
+  padding: 11px 13px; border: 1px solid rgba(255,255,255,0.08); border-radius: 11px;
+  background: rgba(0,0,0,0.28); color: var(--text-primary);
+  font-family: inherit; font-size: 13px; line-height: 1.5; outline: none;
+}
+.win-notes-textarea::placeholder { color: var(--text-tertiary); }
+
+.framework-textarea {
+  width: 100%; min-height: 70px; resize: vertical;
+  padding: 10px 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+  background: rgba(0,0,0,0.28); color: var(--text-secondary);
+  font-family: inherit; font-size: 12px; line-height: 1.5; outline: none;
+  margin-bottom: 10px;
+}
+.framework-textarea::placeholder { color: var(--text-tertiary); }
+
+.generated-box {
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 13px; margin-top: 10px;
+}
+.generated-subject { font-size: 12.5px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.generated-body { font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap; }
+.generated-foot { display: flex; justify-content: flex-end; margin-top: 10px; }
+
+.history-toggle { font-size: 11px; color: var(--text-tertiary); cursor: pointer; margin-top: 10px; text-decoration: underline; }
+.history-list { display: none; margin-top: 8px; }
+.history-list.show { display: block; }
+.history-item { padding: 9px 11px; background: rgba(255,255,255,0.03); border-radius: 9px; margin-bottom: 6px; font-size: 11.5px; color: var(--text-tertiary); }
+.history-item-body { color: var(--text-secondary); margin-top: 4px; white-space: pre-wrap; }
+
+@media (max-width: 480px) {
+  body { padding: max(20px, env(safe-area-inset-top)) 14px 50px; }
+  .gm-card { padding: 16px; }
+  .modal { padding: 18px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hub-head">
+    <div>
+      <a class="back-link" href="evotix.html">← Evotix</a>
+      <h1 class="dash-title" style="margin-top:4px">Outreach</h1>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Add Company</div>
+    <div class="gm-card">
+      <div class="gm-input-wrap">
+        <input class="gm-input" id="cName" type="text" placeholder="Company name…" autocomplete="off" style="flex:1 1 200px">
+        <input class="gm-input" id="cContext" type="text" placeholder="Context (optional) — industry, how you found them…" autocomplete="off" style="flex:2 1 260px">
+        <button class="gm-add" id="cAdd" type="button">🔍 Research &amp; Add</button>
+      </div>
+      <div class="gm-status" id="cStatus"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Active Pipeline</div>
+    <div class="company-grid" id="activeGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Passed Opportunities</div>
+    <div class="company-grid" id="passedGrid"></div>
+  </div>
+
+</div><!-- /.page -->
+
+<!-- ===== Company profile modal ===== -->
+<div class="modal-bg" id="profileBg">
+  <div class="modal" id="profileModal" role="dialog" aria-label="Company profile"></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+
+  const STORE_KEY = 'evotix:companies';
+  const FRAMEWORK_EMAIL_KEY = 'evotix:outreach:emailFramework';
+  const FRAMEWORK_LINKEDIN_KEY = 'evotix:outreach:linkedinFramework';
+
+  function loadJSON(key, fallback) {
+    try { const v = JSON.parse(localStorage.getItem(key)); return v == null ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function saveJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
+  function loadStr(key) { return localStorage.getItem(key) || ''; }
+  function saveStr(key, value) { localStorage.setItem(key, value); }
+
+  function load() { return loadJSON(STORE_KEY, []); }
+  function save(items) { saveJSON(STORE_KEY, items); }
+  function newId() { return 'co' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function findById(items, id) { return items.findIndex((c) => c.id === id); }
+  function updateCompany(id, mutator) {
+    const items = load();
+    const i = findById(items, id);
+    if (i < 0) return;
+    mutator(items[i]);
+    save(items);
+    renderLists();
+    if (openId === id) renderModal(id);
+  }
+  function deleteCompany(id) {
+    if (!confirm('Delete this company profile? This cannot be undone.')) return;
+    const items = load();
+    const i = findById(items, id);
+    if (i < 0) return;
+    items.splice(i, 1);
+    save(items);
+    if (openId === id) closeModal();
+    renderLists();
+  }
+
+  function fmtDate(ts) {
+    return ts ? new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+  }
+
+  /* ---------- goals integration (mirrors main.html's goal-day logic) ---------- */
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function dateToKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function getActiveDateString() {
+    const now = new Date();
+    if (now.getHours() < 6) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 1);
+      return dateToKey(d);
+    }
+    return dateToKey(now);
+  }
+  function pushGoalDone(text) {
+    const key = 'goals:' + getActiveDateString();
+    const goals = loadJSON(key, []);
+    goals.push({ text: text, done: true, doneAt: Date.now() });
+    saveJSON(key, goals);
+    window.dispatchEvent(new CustomEvent('goals-changed'));
+  }
+  function pushSao(companyName) {
+    const saos = loadJSON('evotix:saos', []);
+    saos.push({ date: dateToKey(new Date()), note: 'Opportunity passed — ' + companyName });
+    saveJSON('evotix:saos', saos);
+  }
+
+  /* ---------- research + content API calls ---------- */
+  async function callApi(path, body) {
+    const res = await fetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data && data.error) || ('request failed (' + res.status + ')'));
+    return data;
+  }
+
+  /* ---------- add company ---------- */
+  async function addCompany() {
+    const nameEl = $('cName');
+    const ctxEl = $('cContext');
+    const statusEl = $('cStatus');
+    const addBtn = $('cAdd');
+    const name = nameEl.value.trim();
+    if (!name) return;
+
+    addBtn.disabled = true;
+    statusEl.textContent = 'Researching ' + name + '…';
+
+    const company = {
+      id: newId(),
+      name: name,
+      context: ctxEl.value.trim(),
+      research: null,
+      meetingBooked: false,
+      meetingBookedAt: null,
+      passed: false,
+      passedAt: null,
+      winNotes: '',
+      emails: [],
+      linkedin: [],
+      createdAt: Date.now()
+    };
+
+    try {
+      const data = await callApi('/api/company-research', { name: name, context: company.context });
+      company.research = {
+        summary: data.summary || '',
+        useCases: Array.isArray(data.useCases) ? data.useCases : [],
+        recentNews: Array.isArray(data.recentNews) ? data.recentNews : [],
+        sources: Array.isArray(data.sources) ? data.sources : [],
+        researchedAt: Date.now()
+      };
+      statusEl.textContent = '';
+    } catch (e) {
+      statusEl.textContent = 'Added, but research failed — ' + (e && e.message ? e.message : 'try Re-research in the profile.');
+      setTimeout(() => { statusEl.textContent = ''; }, 6000);
+    }
+
+    const items = load();
+    items.push(company);
+    save(items);
+    nameEl.value = '';
+    ctxEl.value = '';
+    addBtn.disabled = false;
+    renderLists();
+  }
+  $('cAdd').addEventListener('click', addCompany);
+  [$('cName'), $('cContext')].forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCompany(); }));
+
+  /* ---------- re-research ---------- */
+  async function reResearch(id, btnEl) {
+    const items = load();
+    const company = items[findById(items, id)];
+    if (!company) return;
+    const origLabel = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Researching…';
+    try {
+      const data = await callApi('/api/company-research', { name: company.name, context: company.context });
+      updateCompany(id, (c) => {
+        c.research = {
+          summary: data.summary || '',
+          useCases: Array.isArray(data.useCases) ? data.useCases : [],
+          recentNews: Array.isArray(data.recentNews) ? data.recentNews : [],
+          sources: Array.isArray(data.sources) ? data.sources : [],
+          researchedAt: Date.now()
+        };
+      });
+    } catch (e) {
+      alert('Research failed: ' + (e && e.message ? e.message : 'try again.'));
+      btnEl.disabled = false;
+      btnEl.textContent = origLabel;
+    }
+  }
+
+  /* ---------- milestones ---------- */
+  function toggleMeetingBooked(id, checked) {
+    updateCompany(id, (c) => {
+      c.meetingBooked = checked;
+      c.meetingBookedAt = checked ? Date.now() : null;
+    });
+    if (checked) {
+      const items = load();
+      const c = items[findById(items, id)];
+      if (c) pushGoalDone('Booked meeting — ' + c.name);
+    }
+  }
+  function togglePassed(id, checked) {
+    const items = load();
+    const c = items[findById(items, id)];
+    if (!c) return;
+    updateCompany(id, (co) => {
+      co.passed = checked;
+      co.passedAt = checked ? Date.now() : null;
+    });
+    if (checked) {
+      pushSao(c.name);
+      pushGoalDone('Opportunity passed — ' + c.name);
+    }
+  }
+  function saveWinNotes(id, text) {
+    updateCompany(id, (c) => { c.winNotes = text; });
+  }
+
+  /* ---------- email / linkedin generation ---------- */
+  async function generateEmail(id, btnEl) {
+    const items = load();
+    const c = items[findById(items, id)];
+    if (!c) return;
+    const framework = loadStr(FRAMEWORK_EMAIL_KEY);
+    const origLabel = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Writing…';
+    try {
+      const data = await callApi('/api/outreach-content', {
+        type: 'email',
+        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews },
+        framework: framework,
+        priorMessages: (c.emails || []).map((e) => e.subject).slice(-8)
+      });
+      updateCompany(id, (co) => {
+        co.emails = co.emails || [];
+        co.emails.push({ subject: data.subject || '', body: data.body || '', generatedAt: Date.now() });
+      });
+    } catch (e) {
+      alert('Couldn\'t generate email: ' + (e && e.message ? e.message : 'try again.'));
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = origLabel;
+    }
+  }
+  async function generateLinkedin(id, btnEl) {
+    const items = load();
+    const c = items[findById(items, id)];
+    if (!c) return;
+    const framework = loadStr(FRAMEWORK_LINKEDIN_KEY);
+    const origLabel = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Writing…';
+    try {
+      const data = await callApi('/api/outreach-content', {
+        type: 'linkedin',
+        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews },
+        framework: framework,
+        priorMessages: (c.linkedin || []).map((m) => m.body).slice(-8)
+      });
+      updateCompany(id, (co) => {
+        co.linkedin = co.linkedin || [];
+        co.linkedin.push({ body: data.body || '', generatedAt: Date.now() });
+      });
+    } catch (e) {
+      alert('Couldn\'t generate LinkedIn message: ' + (e && e.message ? e.message : 'try again.'));
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = origLabel;
+    }
+  }
+
+  function copyText(text, btnEl) {
+    const orig = btnEl.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btnEl.textContent = 'Copied ✓';
+      setTimeout(() => { btnEl.textContent = orig; }, 1500);
+    }).catch(() => {});
+  }
+
+  /* ---------- card builder ---------- */
+  function buildCard(c) {
+    const el = document.createElement('div');
+    el.className = 'company-card';
+    el.addEventListener('click', () => openModal(c.id));
+
+    const top = document.createElement('div');
+    top.className = 'company-card-top';
+    const name = document.createElement('span');
+    name.className = 'company-name';
+    name.textContent = c.name;
+    const del = document.createElement('button');
+    del.className = 'company-del';
+    del.type = 'button';
+    del.textContent = '×';
+    del.addEventListener('click', (e) => { e.stopPropagation(); deleteCompany(c.id); });
+    top.append(name, del);
+
+    const summary = document.createElement('div');
+    summary.className = 'company-summary';
+    summary.textContent = c.research && c.research.summary ? c.research.summary : (c.research === null ? 'Research pending — open to retry.' : 'No research yet.');
+
+    el.append(top, summary);
+
+    if (c.passed) {
+      const notes = document.createElement('div');
+      notes.className = 'win-notes-preview';
+      notes.textContent = c.winNotes ? ('"' + c.winNotes.slice(0, 80) + (c.winNotes.length > 80 ? '…' : '') + '"') : 'No win notes yet — passed ' + fmtDate(c.passedAt);
+      el.appendChild(notes);
+    } else {
+      const pills = document.createElement('div');
+      pills.className = 'company-pills';
+      const mp = document.createElement('span');
+      mp.className = 'milestone-pill' + (c.meetingBooked ? ' done' : '');
+      mp.textContent = (c.meetingBooked ? '✓' : '○') + ' Meeting';
+      const pp = document.createElement('span');
+      pp.className = 'milestone-pill';
+      pp.textContent = '○ Passed';
+      pills.append(mp, pp);
+      el.appendChild(pills);
+    }
+
+    return el;
+  }
+
+  function renderLists() {
+    const items = load();
+    const active = items.filter((c) => !c.passed).sort((a, b) => b.createdAt - a.createdAt);
+    const passed = items.filter((c) => c.passed).sort((a, b) => (b.passedAt || 0) - (a.passedAt || 0));
+
+    const activeGrid = $('activeGrid');
+    activeGrid.innerHTML = '';
+    if (active.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'No companies in the pipeline yet — add one above.';
+      activeGrid.appendChild(empty);
+    } else {
+      active.forEach((c) => activeGrid.appendChild(buildCard(c)));
+    }
+
+    const passedGrid = $('passedGrid');
+    passedGrid.innerHTML = '';
+    if (passed.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = 'Nothing passed yet.';
+      passedGrid.appendChild(empty);
+    } else {
+      passed.forEach((c) => passedGrid.appendChild(buildCard(c)));
+    }
+  }
+
+  /* ---------- profile modal ---------- */
+  let openId = null;
+
+  function openModal(id) {
+    openId = id;
+    renderModal(id);
+    $('profileBg').classList.add('show');
+  }
+  function closeModal() {
+    openId = null;
+    $('profileBg').classList.remove('show');
+  }
+  $('profileBg').addEventListener('click', (e) => { if (e.target === $('profileBg')) closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openId) closeModal(); });
+
+  function renderModal(id) {
+    const items = load();
+    const c = items[findById(items, id)];
+    if (!c) { closeModal(); return; }
+    const modal = $('profileModal');
+    modal.innerHTML = '';
+
+    // Header
+    const head = document.createElement('div');
+    head.className = 'modal-head';
+    const left = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'modal-title';
+    title.textContent = c.name;
+    const sub = document.createElement('div');
+    sub.className = 'modal-sub';
+    sub.textContent = c.context || 'Added ' + fmtDate(c.createdAt);
+    left.append(title, sub);
+    const close = document.createElement('button');
+    close.className = 'modal-close';
+    close.type = 'button';
+    close.textContent = '×';
+    close.addEventListener('click', closeModal);
+    head.append(left, close);
+    modal.appendChild(head);
+
+    // Research section
+    const research = document.createElement('div');
+    research.className = 'profile-section';
+    const rEyebrow = document.createElement('div');
+    rEyebrow.className = 'profile-eyebrow';
+    const rLabel = document.createElement('span');
+    rLabel.textContent = 'Research';
+    const rBtn = document.createElement('button');
+    rBtn.className = 'mini-btn';
+    rBtn.type = 'button';
+    rBtn.textContent = c.research ? '🔄 Re-research' : '🔍 Research now';
+    rBtn.addEventListener('click', () => reResearch(id, rBtn));
+    rEyebrow.append(rLabel, rBtn);
+    research.appendChild(rEyebrow);
+
+    if (c.research) {
+      const summary = document.createElement('div');
+      summary.className = 'research-summary';
+      summary.textContent = c.research.summary || '';
+      research.appendChild(summary);
+
+      if (c.research.useCases && c.research.useCases.length) {
+        const ucLabel = document.createElement('div');
+        ucLabel.className = 'profile-eyebrow';
+        ucLabel.style.marginTop = '14px';
+        ucLabel.textContent = 'Use Cases';
+        const ucList = document.createElement('ul');
+        ucList.className = 'research-list';
+        c.research.useCases.forEach((u) => {
+          const li = document.createElement('li');
+          li.textContent = u;
+          ucList.appendChild(li);
+        });
+        research.append(ucLabel, ucList);
+      }
+
+      if (c.research.recentNews && c.research.recentNews.length) {
+        const newsLabel = document.createElement('div');
+        newsLabel.className = 'profile-eyebrow';
+        newsLabel.style.marginTop = '14px';
+        newsLabel.textContent = 'Recent News';
+        research.appendChild(newsLabel);
+        c.research.recentNews.forEach((n) => {
+          const item = document.createElement('div');
+          item.className = 'news-item';
+          const hl = document.createElement('span');
+          hl.className = 'news-headline';
+          hl.textContent = n.headline || '';
+          item.appendChild(hl);
+          if (n.note) item.appendChild(document.createTextNode(' — ' + n.note));
+          research.appendChild(item);
+        });
+      }
+
+      if (c.research.sources && c.research.sources.length) {
+        const sources = document.createElement('div');
+        sources.className = 'research-sources';
+        c.research.sources.forEach((s) => {
+          const a = document.createElement('a');
+          a.href = s;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = (function () { try { return new URL(s).hostname; } catch (e) { return s; } })();
+          sources.appendChild(a);
+        });
+        research.appendChild(sources);
+      }
+    } else {
+      const empty = document.createElement('div');
+      empty.className = 'research-empty';
+      empty.textContent = 'No research yet.';
+      research.appendChild(empty);
+    }
+    modal.appendChild(research);
+
+    // Milestones section
+    const milestones = document.createElement('div');
+    milestones.className = 'profile-section';
+    const mEyebrow = document.createElement('div');
+    mEyebrow.className = 'profile-eyebrow';
+    mEyebrow.textContent = 'Milestones';
+    milestones.appendChild(mEyebrow);
+
+    const meetingRow = document.createElement('label');
+    meetingRow.className = 'milestone-row';
+    const meetingCb = document.createElement('input');
+    meetingCb.type = 'checkbox';
+    meetingCb.checked = !!c.meetingBooked;
+    meetingCb.addEventListener('change', () => toggleMeetingBooked(id, meetingCb.checked));
+    const meetingLabel = document.createElement('span');
+    meetingLabel.className = 'ml-label';
+    meetingLabel.textContent = 'Meeting booked';
+    const meetingHint = document.createElement('span');
+    meetingHint.className = 'ml-hint';
+    meetingHint.textContent = c.meetingBookedAt ? fmtDate(c.meetingBookedAt) : '';
+    meetingRow.append(meetingCb, meetingLabel, meetingHint);
+
+    const passedRow = document.createElement('label');
+    passedRow.className = 'milestone-row';
+    const passedCb = document.createElement('input');
+    passedCb.type = 'checkbox';
+    passedCb.checked = !!c.passed;
+    passedCb.addEventListener('change', () => togglePassed(id, passedCb.checked));
+    const passedLabel = document.createElement('span');
+    passedLabel.className = 'ml-label';
+    passedLabel.textContent = 'Opportunity passed';
+    const passedHint = document.createElement('span');
+    passedHint.className = 'ml-hint';
+    passedHint.textContent = c.passed ? ('logged as an SAO · ' + fmtDate(c.passedAt)) : '';
+    passedRow.append(passedCb, passedLabel, passedHint);
+
+    milestones.append(meetingRow, passedRow);
+
+    if (c.passed) {
+      const winLabel = document.createElement('div');
+      winLabel.className = 'profile-eyebrow';
+      winLabel.style.marginTop = '10px';
+      winLabel.textContent = 'Win Notes';
+      const winArea = document.createElement('textarea');
+      winArea.className = 'win-notes-textarea';
+      winArea.placeholder = 'How did you win this one? What worked?';
+      winArea.value = c.winNotes || '';
+      winArea.addEventListener('blur', () => saveWinNotes(id, winArea.value));
+      milestones.append(winLabel, winArea);
+    }
+    modal.appendChild(milestones);
+
+    // Email generator
+    const emailSec = document.createElement('div');
+    emailSec.className = 'profile-section';
+    const eEyebrow = document.createElement('div');
+    eEyebrow.className = 'profile-eyebrow';
+    eEyebrow.textContent = 'Email';
+    emailSec.appendChild(eEyebrow);
+
+    const eFrameworkArea = document.createElement('textarea');
+    eFrameworkArea.className = 'framework-textarea';
+    eFrameworkArea.placeholder = 'Paste an email framework/template here (optional) — reused for every company. Leave blank to let the AI use a default cold-email structure.';
+    eFrameworkArea.value = loadStr(FRAMEWORK_EMAIL_KEY);
+    eFrameworkArea.addEventListener('blur', () => saveStr(FRAMEWORK_EMAIL_KEY, eFrameworkArea.value));
+    emailSec.appendChild(eFrameworkArea);
+
+    const eGenBtn = document.createElement('button');
+    eGenBtn.className = 'gm-add';
+    eGenBtn.type = 'button';
+    eGenBtn.textContent = '✨ Generate Email';
+    eGenBtn.addEventListener('click', () => generateEmail(id, eGenBtn));
+    emailSec.appendChild(eGenBtn);
+
+    if (c.emails && c.emails.length) {
+      const latest = c.emails[c.emails.length - 1];
+      const box = document.createElement('div');
+      box.className = 'generated-box';
+      const subj = document.createElement('div');
+      subj.className = 'generated-subject';
+      subj.textContent = latest.subject;
+      const body = document.createElement('div');
+      body.className = 'generated-body';
+      body.textContent = latest.body;
+      const foot = document.createElement('div');
+      foot.className = 'generated-foot';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'mini-btn';
+      copyBtn.type = 'button';
+      copyBtn.textContent = '📋 Copy';
+      copyBtn.addEventListener('click', () => copyText(latest.subject + '\n\n' + latest.body, copyBtn));
+      foot.appendChild(copyBtn);
+      box.append(subj, body, foot);
+      emailSec.appendChild(box);
+
+      if (c.emails.length > 1) {
+        emailSec.appendChild(buildHistoryToggle(c.emails.slice(0, -1).reverse(), (e) => e.subject + '\n' + e.body));
+      }
+    }
+    modal.appendChild(emailSec);
+
+    // LinkedIn generator
+    const liSec = document.createElement('div');
+    liSec.className = 'profile-section';
+    const lEyebrow = document.createElement('div');
+    lEyebrow.className = 'profile-eyebrow';
+    lEyebrow.textContent = 'LinkedIn';
+    liSec.appendChild(lEyebrow);
+
+    const lFrameworkArea = document.createElement('textarea');
+    lFrameworkArea.className = 'framework-textarea';
+    lFrameworkArea.placeholder = 'Paste a LinkedIn message framework here (optional) — reused for every company.';
+    lFrameworkArea.value = loadStr(FRAMEWORK_LINKEDIN_KEY);
+    lFrameworkArea.addEventListener('blur', () => saveStr(FRAMEWORK_LINKEDIN_KEY, lFrameworkArea.value));
+    liSec.appendChild(lFrameworkArea);
+
+    const lGenBtn = document.createElement('button');
+    lGenBtn.className = 'gm-add';
+    lGenBtn.type = 'button';
+    lGenBtn.textContent = '✨ Generate LinkedIn Message';
+    lGenBtn.addEventListener('click', () => generateLinkedin(id, lGenBtn));
+    liSec.appendChild(lGenBtn);
+
+    if (c.linkedin && c.linkedin.length) {
+      const latest = c.linkedin[c.linkedin.length - 1];
+      const box = document.createElement('div');
+      box.className = 'generated-box';
+      const body = document.createElement('div');
+      body.className = 'generated-body';
+      body.textContent = latest.body;
+      const foot = document.createElement('div');
+      foot.className = 'generated-foot';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'mini-btn';
+      copyBtn.type = 'button';
+      copyBtn.textContent = '📋 Copy';
+      copyBtn.addEventListener('click', () => copyText(latest.body, copyBtn));
+      foot.appendChild(copyBtn);
+      box.append(body, foot);
+      liSec.appendChild(box);
+
+      if (c.linkedin.length > 1) {
+        liSec.appendChild(buildHistoryToggle(c.linkedin.slice(0, -1).reverse(), (m) => m.body));
+      }
+    }
+    modal.appendChild(liSec);
+  }
+
+  function buildHistoryToggle(items, textFn) {
+    const wrap = document.createElement('div');
+    const toggle = document.createElement('div');
+    toggle.className = 'history-toggle';
+    toggle.textContent = 'Show ' + items.length + ' earlier version' + (items.length === 1 ? '' : 's');
+    const list = document.createElement('div');
+    list.className = 'history-list';
+    items.forEach((it) => {
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      row.textContent = fmtDate(it.generatedAt);
+      const body = document.createElement('div');
+      body.className = 'history-item-body';
+      body.textContent = textFn(it);
+      row.appendChild(body);
+      list.appendChild(row);
+    });
+    toggle.addEventListener('click', () => {
+      const showing = list.classList.toggle('show');
+      toggle.textContent = showing ? 'Hide earlier versions' : 'Show ' + items.length + ' earlier version' + (items.length === 1 ? '' : 's');
+    });
+    wrap.append(toggle, list);
+    return wrap;
+  }
+
+  /* ---------- boot ---------- */
+  renderLists();
+
+  if (window.initCloudSync) {
+    window.initCloudSync({
+      appKey: 'outreach',
+      syncedKeys: [STORE_KEY, FRAMEWORK_EMAIL_KEY, FRAMEWORK_LINKEDIN_KEY],
+      onApplied: function () {
+        renderLists();
+        if (openId) renderModal(openId);
+      }
+    });
+    // Must mirror evotix.html's own 'evotix' sync config exactly — both pages
+    // write to evotix:saos, and cloud sync replaces the whole remote record
+    // rather than merging, so a narrower key list here would clobber the rest.
+    window.initCloudSync({
+      appKey: 'evotix',
+      syncedKeys: ['evotix:paychecks', 'evotix:saos'],
+      syncedPrefixes: ['evotix:mit:']
+    });
+    // Must mirror main.html's 'goals' sync config exactly, same reason.
+    window.initCloudSync({
+      appKey: 'goals',
+      syncedPrefixes: ['goals:', 'lifegoals_v1', 'lifegoals_period_meta_v1', 'lgdaily:', 'lgweekly:', 'lgmonthly:']
+    });
+  }
+})();
+</script>
+</body>
+</html>
