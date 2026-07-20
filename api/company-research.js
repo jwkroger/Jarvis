@@ -10,6 +10,14 @@
 // press, conference bios, indexed LinkedIn results) — the model is
 // instructed to leave `name` blank rather than invent one it can't verify.
 // ============================================================
+
+// Researching a company now takes several web-search rounds (company info,
+// use cases, news, suggested contacts), which can run past Vercel's default
+// serverless timeout with no config set. Extend it explicitly.
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -56,10 +64,20 @@ export default async function handler(req, res) {
     'sentence before or after it.';
 
   try {
-    const content = await callClaudeWithSearch(apiKey, prompt, 3000);
-    const jsonStr = extractLastJson(content);
+    const result = await callClaudeWithSearch(apiKey, prompt, 4000);
+    const jsonStr = extractLastJson(result.content);
     let data;
-    try { data = JSON.parse(jsonStr); } catch (e) { throw new Error('could not parse research from the model'); }
+    try {
+      data = JSON.parse(jsonStr);
+    } catch (e) {
+      // The most common real cause here is the response getting cut off
+      // mid-JSON — this call now covers company info + use cases + news +
+      // suggested contacts in one answer, so it needs more room. Report that
+      // plainly instead of a bare "could not parse" when it's actually why.
+      throw new Error(result.truncated
+        ? 'the model\'s answer got cut off before finishing (ran out of room) — try again'
+        : 'could not parse research from the model');
+    }
     return res.status(200).json(data);
   } catch (e) {
     return res.status(500).json({ error: 'company research failed: ' + (e && e.message ? e.message : String(e)) });
@@ -109,7 +127,7 @@ async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
       continue;
     }
     if (!data.content || !data.content.length) throw new Error('empty response');
-    return data.content;
+    return { content: data.content, truncated: data.stop_reason === 'max_tokens' };
   }
   throw new Error('research did not finish after several search rounds — try again');
 }
