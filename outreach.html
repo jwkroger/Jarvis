@@ -417,6 +417,40 @@ body::after {
     return data;
   }
 
+  /* ---------- research — company info + contacts, run in parallel ---------- */
+  // Two separate, narrower-scoped calls instead of one call trying to do
+  // everything: cramming company research AND contact-hunting into a single
+  // model turn was regularly timing out. Running them in parallel also means
+  // total wait time is whichever one is slower, not the sum of both, and one
+  // failing doesn't block the other from saving.
+  async function runResearch(name, context) {
+    const [companyResult, contactsResult] = await Promise.allSettled([
+      callApi('/api/company-research', { name: name, context: context }),
+      callApi('/api/company-contacts', { name: name, context: context })
+    ]);
+
+    const research = { summary: '', useCases: [], recentNews: [], suggestedContacts: [], sources: [], researchedAt: Date.now() };
+    const errors = [];
+
+    if (companyResult.status === 'fulfilled') {
+      const data = companyResult.value;
+      research.summary = data.summary || '';
+      research.useCases = Array.isArray(data.useCases) ? data.useCases : [];
+      research.recentNews = Array.isArray(data.recentNews) ? data.recentNews : [];
+      research.sources = Array.isArray(data.sources) ? data.sources : [];
+    } else {
+      errors.push('company research — ' + (companyResult.reason && companyResult.reason.message ? companyResult.reason.message : 'failed'));
+    }
+
+    if (contactsResult.status === 'fulfilled') {
+      research.suggestedContacts = Array.isArray(contactsResult.value.suggestedContacts) ? contactsResult.value.suggestedContacts : [];
+    } else {
+      errors.push('suggested contacts — ' + (contactsResult.reason && contactsResult.reason.message ? contactsResult.reason.message : 'failed'));
+    }
+
+    return { research, errors };
+  }
+
   /* ---------- add company ---------- */
   async function addCompany() {
     const nameEl = $('cName');
@@ -444,21 +478,10 @@ body::after {
       createdAt: Date.now()
     };
 
-    try {
-      const data = await callApi('/api/company-research', { name: name, context: company.context });
-      company.research = {
-        summary: data.summary || '',
-        useCases: Array.isArray(data.useCases) ? data.useCases : [],
-        recentNews: Array.isArray(data.recentNews) ? data.recentNews : [],
-        suggestedContacts: Array.isArray(data.suggestedContacts) ? data.suggestedContacts : [],
-        sources: Array.isArray(data.sources) ? data.sources : [],
-        researchedAt: Date.now()
-      };
-      statusEl.textContent = '';
-    } catch (e) {
-      statusEl.textContent = 'Added, but research failed — ' + (e && e.message ? e.message : 'try Re-research in the profile.');
-      setTimeout(() => { statusEl.textContent = ''; }, 6000);
-    }
+    const { research, errors } = await runResearch(name, company.context);
+    company.research = research;
+    statusEl.textContent = errors.length ? ('Added — some research didn\'t finish: ' + errors.join('; ') + '. Try Re-research in the profile.') : '';
+    if (errors.length) setTimeout(() => { statusEl.textContent = ''; }, 8000);
 
     const items = load();
     items.push(company);
@@ -479,22 +502,10 @@ body::after {
     const origLabel = btnEl.textContent;
     btnEl.disabled = true;
     btnEl.textContent = 'Researching…';
-    try {
-      const data = await callApi('/api/company-research', { name: company.name, context: company.context });
-      updateCompany(id, (c) => {
-        c.research = {
-          summary: data.summary || '',
-          useCases: Array.isArray(data.useCases) ? data.useCases : [],
-          recentNews: Array.isArray(data.recentNews) ? data.recentNews : [],
-          sources: Array.isArray(data.sources) ? data.sources : [],
-          researchedAt: Date.now()
-        };
-      });
-    } catch (e) {
-      alert('Research failed: ' + (e && e.message ? e.message : 'try again.'));
-      btnEl.disabled = false;
-      btnEl.textContent = origLabel;
-    }
+
+    const { research, errors } = await runResearch(company.name, company.context);
+    updateCompany(id, (c) => { c.research = research; });
+    if (errors.length) alert('Research finished, but had issues:\n' + errors.join('\n'));
   }
 
   /* ---------- milestones ---------- */
