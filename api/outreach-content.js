@@ -59,15 +59,45 @@ export default async function handler(req, res) {
       'from people who were interested but hadn\'t prioritized responding.';
   }
 
+  // Titles vary too much to hardcode a lookup table, so bucket by seniority
+  // keywords and let the model reason about the specific title within that
+  // frame — this is what actually changes between a VP and an EHS Manager:
+  // what they personally care about, not just a friendlier greeting.
+  function roleAngle(title) {
+    const t = (title || '').toLowerCase().trim();
+    if (!t) return '';
+    const isExecutive = /\b(vp|vice president|chief|head of|cxo|ceo|coo|cfo)\b/.test(t);
+    const isDirector = /\bdirector\b/.test(t);
+    if (isExecutive) {
+      return 'This contact is EXECUTIVE-LEVEL (' + title + '). Frame the message around organizational risk exposure ' +
+        'and liability, the cost of incidents/non-compliance at scale, board- and audit-level visibility, and ROI — ' +
+        'not day-to-day tool mechanics. They think in terms of risk reduction and budget, not workflows.';
+    }
+    if (isDirector) {
+      return 'This contact is DIRECTOR-LEVEL (' + title + '). Frame the message around program-wide risk/compliance ' +
+        'outcomes and how this makes their team more effective and audit-ready, with a lighter touch on operational ' +
+        'detail than you\'d use for a frontline manager, and less pure strategy than you\'d use for a VP.';
+    }
+    return 'This contact is at the MANAGER/OPERATIONAL level (' + title + '). Frame the message around reducing their ' +
+      'day-to-day administrative burden — incident reporting, audit prep, inspections, paperwork — and making their ' +
+      'field team\'s job easier. This is the person doing the work, not setting strategy; speak to their actual daily ' +
+      'pain, not boardroom risk framing.';
+  }
+
   const researchBlock =
     'Company: ' + company.name + '\n' +
     (company.summary ? ('Summary: ' + company.summary + '\n') : '') +
     (Array.isArray(company.useCases) && company.useCases.length
       ? ('Relevant EHS use cases: ' + company.useCases.join('; ') + '\n') : '') +
     (Array.isArray(company.recentNews) && company.recentNews.length
-      ? ('Recent news: ' + company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n')
+      ? ('Recent news items — pick whichever is MOST relevant to THIS contact\'s specific role rather than defaulting ' +
+         'to the first one regardless of who it\'s for (a safety incident matters most to a Safety/EHS contact, a ' +
+         'regulatory item matters most to a Risk/Compliance contact, an expansion or new facility could matter to any ' +
+         'of them but connect it to whichever operational challenge it creates that THIS role would personally care ' +
+         'about): ' + company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n')
       : '') +
-    'Contact: ' + contact.name + (contact.title ? (', ' + contact.title) : '') + '\n';
+    'Contact: ' + contact.name + (contact.title ? (', ' + contact.title) : '') + '\n' +
+    (contact.title ? (roleAngle(contact.title) + '\n') : '');
 
   const priorBlock = (Array.isArray(priorMessages) && priorMessages.length)
     ? ('Previous messages already sent to this contact (do not repeat these angles — build on them or take a new one):\n' +
@@ -87,8 +117,10 @@ export default async function handler(req, res) {
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + priorBlock +
-      'Address it to ' + contact.name.split(' ')[0] + ' by first name. Professional but conversational — not salesy or ' +
-      'generic. Return ONLY JSON: {"subject":"...","body":"..."}. No preamble, no markdown fences.';
+      'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
+      'specific person\'s role and seniority (see the framing note above), not a generic pitch that would read the ' +
+      'same regardless of who it\'s addressed to. Professional but conversational — not salesy or generic. ' +
+      'Return ONLY JSON: {"subject":"...","body":"..."}. No preamble, no markdown fences.';
     maxTokens = 700;
   } else if (type === 'linkedin') {
     const isConnectionNote = n <= 0;
@@ -102,6 +134,8 @@ export default async function handler(req, res) {
         : 'This is a LinkedIn FOLLOW-UP message after connecting — keep it under 80 words, casual and low-pressure, ' +
           'reference something specific and real about their company.\n') +
       frameworkBlock + priorBlock +
+      'The angle MUST reflect this specific person\'s role and seniority (see the framing note above) — not a generic ' +
+      'pitch that would read the same regardless of who it\'s addressed to. ' +
       'Return ONLY JSON: {"body":"..."}. No preamble, no markdown fences.';
     maxTokens = 400;
   } else {

@@ -536,6 +536,7 @@ body::after {
   /* ---------- contacts + touchpoints ---------- */
   function addContact(id, name, title, email, linkedin) {
     if (!name.trim()) return;
+    if (!title.trim()) { alert('Job title is required — it\'s what personalizes emails and LinkedIn messages to this contact.'); return; }
     updateCompany(id, (c) => {
       c.contacts = c.contacts || [];
       c.contacts.push({ id: newId(), name: name.trim(), title: title.trim(), email: email.trim(), linkedin: linkedin.trim(), touchpoints: [] });
@@ -1160,7 +1161,8 @@ body::after {
     const titleInput = document.createElement('input');
     titleInput.className = 'gm-input';
     titleInput.type = 'text';
-    titleInput.placeholder = 'Title (optional)…';
+    titleInput.placeholder = 'Job title (required, e.g. VP of Safety)…';
+    titleInput.required = true;
     const emailInput = document.createElement('input');
     emailInput.className = 'gm-input';
     emailInput.type = 'text';
