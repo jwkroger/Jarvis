@@ -129,7 +129,14 @@ async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-8',
+        // Sonnet 5, not Opus, deliberately: this call is timing out around
+        // 10-15s in production (Vercel's actual enforced limit, regardless
+        // of the maxDuration: 60 configured above — likely because Fluid
+        // Compute isn't enabled on the project, which is the one place that
+        // config actually needs a dashboard toggle, not a code change).
+        // Sonnet 5 is built for this speed/quality tradeoff and meaningfully
+        // cuts tool-loop latency without giving up much on a task this size.
+        model: 'claude-sonnet-5',
         max_tokens: maxTokens,
         tools: [{ type: 'web_search_20260209', name: 'web_search' }],
         messages: messages,
