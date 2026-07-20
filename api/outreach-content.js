@@ -23,6 +23,18 @@ export default async function handler(req, res) {
   if (!company || !company.name) return res.status(400).json({ error: 'company required' });
   if (!contact || !contact.name) return res.status(400).json({ error: 'contact required' });
 
+  // Reps were sending copy that called a 2024 news item "last month" — the
+  // model has no reliable sense of "today" on its own, so it's grounded here
+  // and every relative-time phrase downstream has to be checked against it.
+  const todayStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const dateRule =
+    'Today\'s actual date is ' + todayStr + '. If you reference a news item with a relative time phrase ("last ' +
+    'month", "a few weeks ago", "earlier this year", "last year"), that phrase MUST be arithmetically correct given ' +
+    'the item\'s date above versus today\'s date — do not assume a search result is recent just because you found ' +
+    'it, and do not guess. If a news item\'s date is missing or "date unknown", or if you\'re not sure the relative ' +
+    'phrase would be accurate, either state the actual month/year instead (e.g. "back in March") or drop the time ' +
+    'reference entirely rather than risk saying "recently" about something over a year old.\n';
+
   // Research-backed B2B cold-outreach benchmarks (2026): short, specific subject
   // lines roughly double reply rates over generic ones; short bodies (50-125
   // words) outreply long ones by ~50%; enterprise sequences run 4-7+ touches
@@ -133,11 +145,13 @@ export default async function handler(req, res) {
     (Array.isArray(company.useCases) && company.useCases.length
       ? ('Relevant EHS use cases: ' + company.useCases.join('; ') + '\n') : '') +
     (Array.isArray(company.recentNews) && company.recentNews.length
-      ? ('Recent news items — pick whichever is MOST relevant to THIS contact\'s specific role rather than defaulting ' +
-         'to the first one regardless of who it\'s for (a safety incident matters most to a Safety/EHS contact, a ' +
-         'regulatory item matters most to a Risk/Compliance contact, an expansion or new facility could matter to any ' +
-         'of them but connect it to whichever operational challenge it creates that THIS role would personally care ' +
-         'about): ' + company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n')
+      ? ('Recent news items (each with the date it was actually published, if known) — pick whichever is MOST relevant ' +
+         'to THIS contact\'s specific role rather than defaulting to the first one regardless of who it\'s for (a ' +
+         'safety incident matters most to a Safety/EHS contact, a regulatory item matters most to a Risk/Compliance ' +
+         'contact, an expansion or new facility could matter to any of them but connect it to whichever operational ' +
+         'challenge it creates that THIS role would personally care about): ' +
+         company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.date ? (' [dated: ' + n2.date + ']') : '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n' +
+         dateRule)
       : '') +
     'Contact: ' + contact.name + (contact.title ? (', ' + contact.title) : '') + '\n' +
     (contact.title ? (roleAngle(contact.title) + '\n') : '') +

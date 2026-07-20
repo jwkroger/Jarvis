@@ -19,11 +19,19 @@ export default async function handler(req, res) {
   const { name, context } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'company name required' });
 
+  // Search results and the model's training data both skew stale, and a rep
+  // referencing "last month" for something over a year old reads as sloppy or
+  // outright wrong. Ground every date judgment (both the "last 6-12 months"
+  // filter and each item's own date) in the ACTUAL current date, not a guess.
+  const todayStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
   // Evotix sells two distinct platforms, not one — getting the wrong one in
   // front of a prospect is a real credibility problem, so the model has to
   // actually classify the account from research signals rather than default
   // to either product or segment label.
   const prompt =
+    'Today\'s actual date is ' + todayStr + '. Use this as ground truth for every date judgment below — do not rely ' +
+    'on assumptions about what year or month it is.\n\n' +
     'You are a B2B sales research assistant helping a BDR (business development rep) at Evotix, an EHS&S ' +
     '(Environmental, Health, Safety & Sustainability) software company. Evotix sells TWO distinct platforms:\n' +
     '- Assure: built for MID-MARKET companies (roughly 500-10,000 employees, typically single-region or a modest ' +
@@ -49,11 +57,14 @@ export default async function handler(req, res) {
     'actual industry, operations, and scale. Reference the CORRECT platform by name for the segment you classified ' +
     '(Assure for mid-market, 360 for enterprise) — do not default to naming Assure for every company, and do not ' +
     'call a mid-market account "enterprise" or an enterprise account "mid-market" anywhere in the use cases.\n' +
-    '4. 2-4 recent, real news items (last 6-12 months) relevant to a sales outreach conversation — e.g. safety ' +
-    'incidents, expansions, new facilities, leadership changes, regulatory news, sustainability initiatives. Only ' +
-    'include real items found via search; do not invent news. If nothing recent turns up, return an empty array.\n\n' +
+    '4. 2-4 recent, real news items relative to TODAY (' + todayStr + '), ideally within the last 6-12 months — e.g. ' +
+    'safety incidents, expansions, new facilities, leadership changes, regulatory news, sustainability initiatives. ' +
+    'Only include real items found via search; do not invent news. For EACH item, include the actual publish date you ' +
+    'found (a specific date if you have it, otherwise at least "Month Year") — do not guess or estimate a date, and ' +
+    'if you truly cannot confirm one, use "date unknown" rather than making one up. If nothing recent turns up, ' +
+    'return an empty array.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
-    '{"summary":"...","segment":"mid-market|enterprise|unclear","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
+    '{"summary":"...","segment":"mid-market|enterprise|unclear","useCases":["...","..."],"recentNews":[{"headline":"...","date":"YYYY-MM-DD or Month Year or date unknown","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
     'sentence before or after it.';
 

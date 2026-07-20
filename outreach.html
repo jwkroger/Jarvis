@@ -898,6 +898,7 @@ body::after {
           hl.className = 'news-headline';
           hl.textContent = n.headline || '';
           item.appendChild(hl);
+          if (n.date && n.date !== 'date unknown') item.appendChild(document.createTextNode(' (' + n.date + ')'));
           if (n.note) item.appendChild(document.createTextNode(' — ' + n.note));
           research.appendChild(item);
         });
