@@ -69,6 +69,8 @@ function buildCompanyPrompt(name, context) {
     '3. 2-4 recent, real news items (last 6-12 months) relevant to a sales outreach conversation — e.g. safety ' +
     'incidents, expansions, new facilities, leadership changes, regulatory news, sustainability initiatives. Only ' +
     'include real items found via search; do not invent news. If nothing recent turns up, return an empty array.\n\n' +
+    'This has a hard time limit — work efficiently. 3-4 targeted searches total is enough to cover all three points ' +
+    'above; don\'t keep searching to be exhaustive once you have enough to answer.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
     '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
@@ -81,15 +83,19 @@ function buildContactsPrompt(name, context) {
     'You are prospecting research for a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) ' +
     'software company, ahead of outreach to "' + String(name).trim() + '"' +
     (context && String(context).trim() ? (' (context from the rep: ' + String(context).trim() + ')') : '') + '.\n\n' +
-    'Find 2-5 likely EHS/Safety decision-makers at this company — titles like VP of Safety, Director of EHS, Head of ' +
-    'Health & Safety, EHS Manager, Director of Risk/Compliance. Search the company\'s own site (leadership/about/team ' +
-    'pages), press releases, conference speaker bios, industry articles, and indexed LinkedIn search results for REAL, ' +
-    'CURRENT names in these roles. Do not invent a person\'s name under any circumstances — you cannot log into ' +
-    'LinkedIn or see private profiles, so only report a name if it\'s corroborated by an actual page you found. If you ' +
-    'can\'t confirm a specific name for a relevant title, still include the title with an empty "name" so the rep knows ' +
-    'what role to look for, and use "note" to say where you\'d suggest looking (e.g. "search LinkedIn for \'VP Safety\' ' +
-    'at this company"). For each entry, "note" should say where/how you found it (or why you\'re suggesting the title), ' +
-    'and include a source URL if you have a real one.\n\n' +
+    'Find up to 3 likely EHS/Safety decision-makers at this company — titles like VP of Safety, Director of EHS, Head ' +
+    'of Health & Safety, EHS Manager, Director of Risk/Compliance.\n\n' +
+    'IMPORTANT — work fast, this has a hard time limit: do AT MOST 2 web searches total, then answer with whatever ' +
+    'you\'ve found. Do not try to check every possible source. Two well-chosen searches is enough, e.g. ' +
+    '\'"[company]" "VP of Safety" OR "Director of EHS"\' and, if that doesn\'t turn up a name, ' +
+    '\'site:linkedin.com "[company]" safety director\'. Stop after that and answer — do not keep searching to be ' +
+    'thorough.\n\n' +
+    'Do not invent a person\'s name under any circumstances — you cannot log into LinkedIn or see private profiles, so ' +
+    'only report a name if it\'s corroborated by an actual page you found. If your 2 searches don\'t confirm a name for ' +
+    'a relevant title, still include the title with an empty "name" so the rep knows what role to look for, and use ' +
+    '"note" to suggest where to look manually (e.g. "search LinkedIn for \'VP Safety\' at this company"). For each ' +
+    'entry, "note" should say where/how you found it (or why you\'re suggesting the title), and include a source URL ' +
+    'if you have a real one.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
     '{"suggestedContacts":[{"name":"... or empty string if unconfirmed","title":"...","note":"...","url":"... or empty string"}]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process.'
