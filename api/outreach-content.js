@@ -60,6 +60,31 @@ export default async function handler(req, res) {
       'from people who were interested but hadn\'t prioritized responding.';
   }
 
+  // Applies MEDDPICC selling to short-form copy: an email/LinkedIn message only
+  // has room for ONE MEDDPICC-relevant angle (unlike the call script's full
+  // multi-category discovery list), and it should never name the framework or
+  // read like a checklist to the prospect. Pick the pillar suited to the
+  // current touch stage so early messages surface pain and later ones can
+  // start touching decision process/economic buyer.
+  function meddpiccAngle() {
+    if (n <= 0) {
+      return 'MEDDPICC angle for this touch (apply it invisibly, never name the framework): lead with PAIN (Identify ' +
+        'Pain) — reference a real, specific operational pain this role would recognize in their industry. Don\'t bring ' +
+        'up budget, process, or other decision-makers yet.';
+    }
+    if (n <= 2) {
+      return 'MEDDPICC angle for this touch (apply it invisibly, never name the framework): build on the pain by hinting ' +
+        'at a METRIC or outcome this role would care about, or by inviting them to loop in a colleague who should see ' +
+        'this (a potential CHAMPION) — pick whichever fits better, not both.';
+    }
+    if (n <= 5) {
+      return 'MEDDPICC angle for this touch (apply it invisibly, never name the framework): it\'s fair to softly touch ' +
+        'on how a decision like this typically gets evaluated at a company their size (DECISION PROCESS), or who\'d ' +
+        'ultimately need to sign off (ECONOMIC BUYER) — a light, curious mention, not a direct budget/procurement ask.';
+    }
+    return 'This is a break-up touch — skip MEDDPICC discovery framing entirely and focus purely on the relationship close.';
+  }
+
   // Titles vary too much to hardcode a lookup table, so bucket by seniority
   // keywords and let the model reason about the specific title within that
   // frame — this is what actually changes between a VP and an EHS Manager:
@@ -177,6 +202,7 @@ export default async function handler(req, res) {
       sequenceStage() + '\n\n' +
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
+      meddpiccAngle() + ' If it doesn\'t fit naturally for this specific message, skip it rather than forcing it.\n\n' +
       'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
@@ -194,6 +220,7 @@ export default async function handler(req, res) {
           'something specific and real about their company. Do not pitch yet, just earn the connection.\n'
         : 'This is a LinkedIn FOLLOW-UP message after connecting — keep it under 80 words, casual and low-pressure, ' +
           'reference something specific and real about their company.\n') +
+      (isConnectionNote ? '' : (meddpiccAngle() + ' If it doesn\'t fit naturally for this specific message, skip it rather than forcing it.\n\n')) +
       'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'The angle MUST reflect this specific person\'s role and seniority (see the framing note above) — not a generic ' +
