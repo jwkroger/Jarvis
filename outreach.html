@@ -406,15 +406,35 @@ body::after {
   }
 
   /* ---------- research + content API calls ---------- */
-  async function callApi(path, body) {
-    const res = await fetch(path, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data && data.error) || ('request failed (' + res.status + ')'));
-    return data;
+  function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+  // How much the model needs to search varies per company, so these calls
+  // sometimes finish fine and sometimes hit the platform's timeout — that's
+  // a transient failure, not a broken request, so retry a couple of times
+  // before giving up rather than making the search budget more conservative
+  // (which would just trade "sometimes 504s" for "reliably finds less").
+  async function callApi(path, body, retries) {
+    if (retries == null) retries = 2;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      let res;
+      try {
+        res = await fetch(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch (e) {
+        if (attempt < retries) { await sleep(500 * (attempt + 1)); continue; }
+        throw e;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const transient = res.status === 504 || res.status === 502 || res.status === 503;
+        if (transient && attempt < retries) { await sleep(500 * (attempt + 1)); continue; }
+        throw new Error((data && data.error) || ('request failed (' + res.status + ')'));
+      }
+      return data;
+    }
   }
 
   /* ---------- research — company info + contacts, run in parallel ---------- */
