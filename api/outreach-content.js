@@ -169,8 +169,7 @@ export default async function handler(req, res) {
       frameworkBlock + notesRepeatRule + priorBlock +
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
       'specific person\'s role and seniority (see the framing note above), not a generic pitch that would read the ' +
-      'same regardless of who it\'s addressed to. Professional but conversational — not salesy or generic. ' +
-      'Return ONLY JSON: {"subject":"...","body":"..."}. No preamble, no markdown fences.';
+      'same regardless of who it\'s addressed to. Professional but conversational — not salesy or generic.';
     maxTokens = 700;
   } else if (type === 'linkedin') {
     const isConnectionNote = n <= 0;
@@ -185,8 +184,7 @@ export default async function handler(req, res) {
           'reference something specific and real about their company.\n') +
       frameworkBlock + notesRepeatRule + priorBlock +
       'The angle MUST reflect this specific person\'s role and seniority (see the framing note above) — not a generic ' +
-      'pitch that would read the same regardless of who it\'s addressed to. ' +
-      'Return ONLY JSON: {"body":"..."}. No preamble, no markdown fences.';
+      'pitch that would read the same regardless of who it\'s addressed to.';
     maxTokens = 400;
   } else if (type === 'callscript') {
     prompt =
@@ -208,73 +206,76 @@ export default async function handler(req, res) {
       'what would have just been uncovered rather than a generic "can we set up a call?"\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'Everything MUST reflect this specific person\'s role, seniority, and industry (see the framing note above) — ' +
-      'not a generic script that would read the same for any prospect. ' +
-      'Return ONLY JSON: {"opener":"...","questions":[{"category":"...","items":["...","..."]}],"close":"..."}. ' +
-      'No preamble, no markdown fences.';
+      'not a generic script that would read the same for any prospect.';
     maxTokens = 1600;
   } else {
     return res.status(400).json({ error: 'unknown type' });
   }
 
   try {
-    const text = await callClaude(apiKey, prompt, maxTokens);
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start === -1 || end === -1 || end < start) throw new Error('no JSON object found in response');
-    const raw = text.slice(start, end + 1);
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      try { data = JSON.parse(sanitizeJsonStrings(raw)); }
-      catch (e2) { throw new Error('could not parse response from the model'); }
-    }
+    const data = await callClaude(apiKey, prompt, maxTokens, TOOL_SCHEMAS[type]);
     return res.status(200).json(data);
   } catch (e) {
     return res.status(500).json({ error: 'outreach content failed: ' + (e && e.message ? e.message : String(e)) });
   }
 }
 
-// Multi-beat outputs (the call script opener especially) tempt the model into
-// writing real line breaks inside JSON string values instead of escaping them
-// as \n, which JSON.parse rejects as a bad control character. This walks the
-// text tracking whether we're inside a string (respecting \" escapes) and
-// escapes raw control characters only there, leaving pretty-print whitespace
-// between tokens untouched.
-function sanitizeJsonStrings(text) {
-  let out = '';
-  let inString = false;
-  let escaped = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inString) {
-      if (escaped) {
-        out += ch;
-        escaped = false;
-      } else if (ch === '\\') {
-        out += ch;
-        escaped = true;
-      } else if (ch === '"') {
-        out += ch;
-        inString = false;
-      } else if (ch === '\n') {
-        out += '\\n';
-      } else if (ch === '\r') {
-        out += '\\r';
-      } else if (ch === '\t') {
-        out += '\\t';
-      } else {
-        out += ch;
-      }
-    } else {
-      out += ch;
-      if (ch === '"') inString = true;
+// Free-text-then-parse-the-JSON was fragile: multi-beat script content (the
+// call script opener especially) tempted the model into unescaped newlines
+// or quoted dialogue that broke JSON.parse. Using tool-use forces the model's
+// output through Anthropic's schema-constrained decoding instead, so the API
+// itself guarantees the shape and we get back a parsed object directly.
+const TOOL_SCHEMAS = {
+  email: {
+    name: 'draft_email',
+    description: 'The drafted cold outreach email.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        subject: { type: 'string', description: 'The email subject line.' },
+        body: { type: 'string', description: 'The email body.' }
+      },
+      required: ['subject', 'body']
+    }
+  },
+  linkedin: {
+    name: 'draft_linkedin_message',
+    description: 'The drafted LinkedIn outreach message.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        body: { type: 'string', description: 'The LinkedIn message text.' }
+      },
+      required: ['body']
+    }
+  },
+  callscript: {
+    name: 'draft_call_script',
+    description: 'The drafted cold-call script.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        opener: { type: 'string', description: 'The word-for-word opener script.' },
+        questions: {
+          type: 'array',
+          description: 'Discovery question groups, in the order they should be asked.',
+          items: {
+            type: 'object',
+            properties: {
+              category: { type: 'string' },
+              items: { type: 'array', items: { type: 'string' } }
+            },
+            required: ['category', 'items']
+          }
+        },
+        close: { type: 'string', description: 'The short meeting-ask close line.' }
+      },
+      required: ['opener', 'questions', 'close']
     }
   }
-  return out;
-}
+};
 
-async function callClaude(apiKey, prompt, maxTokens) {
+async function callClaude(apiKey, prompt, maxTokens, tool) {
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -286,6 +287,8 @@ async function callClaude(apiKey, prompt, maxTokens) {
       model: 'claude-opus-4-8',
       max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
+      tools: [tool],
+      tool_choice: { type: 'tool', name: tool.name },
     }),
   });
   const data = await r.json();
@@ -293,8 +296,7 @@ async function callClaude(apiKey, prompt, maxTokens) {
     const msg = (data && data.error && data.error.message) || ('Anthropic API error (' + r.status + ')');
     throw new Error(msg);
   }
-  const text = (data.content || [])
-    .filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
-  if (!text) throw new Error('empty response');
-  return text;
+  const toolUse = (data.content || []).find((b) => b && b.type === 'tool_use');
+  if (!toolUse || !toolUse.input) throw new Error('model did not return structured output');
+  return toolUse.input;
 }
