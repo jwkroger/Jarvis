@@ -110,9 +110,26 @@ export default async function handler(req, res) {
       'pain, not boardroom risk framing.';
   }
 
+  // Evotix sells two distinct platforms (Assure for mid-market, 360 for
+  // enterprise) — getting the wrong one, or the wrong segment label, in front
+  // of a real prospect is a credibility problem, so this is spelled out
+  // explicitly rather than left for the model to infer from the summary text.
+  const seg = (company.segment && String(company.segment).trim().toLowerCase()) || '';
+  const segmentBlock =
+    seg === 'enterprise'
+      ? 'Segment: ENTERPRISE. If a platform is named, it MUST be Evotix 360, not Assure. Never describe this account ' +
+        'as "mid-market."\n'
+      : seg === 'mid-market'
+      ? 'Segment: MID-MARKET. If a platform is named, it MUST be Evotix Assure, not 360. Never describe this account ' +
+        'as "enterprise."\n'
+      : 'Segment: not confidently determined from research. Do not assert this account is "mid-market" or ' +
+        '"enterprise" — if a platform needs naming, keep it general (e.g. "Evotix\'s platform") rather than committing ' +
+        'to Assure or 360.\n';
+
   const researchBlock =
     'Company: ' + company.name + '\n' +
     (company.summary ? ('Summary: ' + company.summary + '\n') : '') +
+    segmentBlock +
     (Array.isArray(company.useCases) && company.useCases.length
       ? ('Relevant EHS use cases: ' + company.useCases.join('; ') + '\n') : '') +
     (Array.isArray(company.recentNews) && company.recentNews.length

@@ -433,11 +433,12 @@ body::after {
   // contacts + touchpoints below are unaffected; this only removed the
   // auto-suggestion step.
   async function runResearch(name, context) {
-    const research = { summary: '', useCases: [], recentNews: [], sources: [], researchedAt: Date.now() };
+    const research = { summary: '', segment: '', useCases: [], recentNews: [], sources: [], researchedAt: Date.now() };
     const errors = [];
     try {
       const data = await callApi('/api/company-research', { name: name, context: context });
       research.summary = data.summary || '';
+      research.segment = data.segment || '';
       research.useCases = Array.isArray(data.useCases) ? data.useCases : [];
       research.recentNews = Array.isArray(data.recentNews) ? data.recentNews : [];
       research.sources = Array.isArray(data.sources) ? data.sources : [];
@@ -599,7 +600,7 @@ body::after {
     try {
       const data = await callApi('/api/outreach-content', {
         type: 'email',
-        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
+        company: { name: c.name, summary: c.research && c.research.summary, segment: c.research && c.research.segment, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
         contact: { name: contact.name, title: contact.title, notes: contact.notes },
         framework: framework,
         touchCount: (contact.touchpoints || []).length,
@@ -630,7 +631,7 @@ body::after {
     try {
       const data = await callApi('/api/outreach-content', {
         type: 'linkedin',
-        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
+        company: { name: c.name, summary: c.research && c.research.summary, segment: c.research && c.research.segment, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
         contact: { name: contact.name, title: contact.title, notes: contact.notes },
         framework: framework,
         touchCount: (contact.touchpoints || []).length,
@@ -681,7 +682,7 @@ body::after {
     try {
       const data = await callApi('/api/outreach-content', {
         type: 'callscript',
-        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
+        company: { name: c.name, summary: c.research && c.research.summary, segment: c.research && c.research.segment, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
         contact: { name: contact.name, title: contact.title, notes: contact.notes },
         touchCount: (contact.touchpoints || []).length,
         priorMessages: (contact.callScripts || []).slice(-4).map((cs) => ({ body: 'Opener: ' + (cs.opener || '') + (cs.close ? (' | Close: ' + cs.close) : '') })),
@@ -855,6 +856,15 @@ body::after {
     research.appendChild(rEyebrow);
 
     if (c.research) {
+      const seg = (c.research.segment || '').trim().toLowerCase();
+      if (seg === 'mid-market' || seg === 'enterprise') {
+        const segBadge = document.createElement('span');
+        segBadge.className = 'milestone-pill';
+        segBadge.style.marginBottom = '8px';
+        segBadge.style.display = 'inline-block';
+        segBadge.textContent = seg === 'enterprise' ? 'ENTERPRISE — reference 360' : 'MID-MARKET — reference Assure';
+        research.appendChild(segBadge);
+      }
       const summary = document.createElement('div');
       summary.className = 'research-summary';
       summary.textContent = c.research.summary || '';

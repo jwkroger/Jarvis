@@ -4,7 +4,7 @@
 // Outreach CRM's company-research helper — uses Claude's server-side
 // web search tool to research a prospect company for a BDR at Evotix.
 // ANTHROPIC_API_KEY stays server-side only (never sent to the browser).
-// Returns { summary, useCases: [...], recentNews: [{headline, note}], sources: [...] }.
+// Returns { summary, segment, useCases: [...], recentNews: [{headline, note}], sources: [...] }.
 // ============================================================
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,24 +19,41 @@ export default async function handler(req, res) {
   const { name, context } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'company name required' });
 
+  // Evotix sells two distinct platforms, not one — getting the wrong one in
+  // front of a prospect is a real credibility problem, so the model has to
+  // actually classify the account from research signals rather than default
+  // to either product or segment label.
   const prompt =
     'You are a B2B sales research assistant helping a BDR (business development rep) at Evotix, an EHS&S ' +
-    '(Environmental, Health, Safety & Sustainability) software company. Evotix\'s Assure platform helps mid-market ' +
-    'companies (roughly 500-10,000+ employees) in industries like manufacturing, construction, food & drink, ' +
-    'transport & logistics, utilities, municipalities, healthcare, education, and housing manage incidents, risk, ' +
-    'audits/inspections, training, and compliance — mobile-first, replacing paper-based systems.\n\n' +
+    '(Environmental, Health, Safety & Sustainability) software company. Evotix sells TWO distinct platforms:\n' +
+    '- Assure: built for MID-MARKET companies (roughly 500-10,000 employees, typically single-region or a modest ' +
+    'number of sites) needing core EHS processes — incidents, risk, audits/inspections, training, compliance — ' +
+    'without a long implementation or heavy admin. Mobile-first, fast setup.\n' +
+    '- 360: built for large ENTERPRISE organizations — big, multi-site, often multi-region/multinational, operating ' +
+    'across varied regulatory environments — bringing safety, health, operational risk, ESG, and training together ' +
+    'in one connected system at enterprise scale, with stronger governance and cross-site reporting.\n' +
+    'Industries for both: manufacturing, construction, food & drink, transport & logistics, utilities, ' +
+    'municipalities, healthcare, education, and housing.\n\n' +
     'Research the company "' + String(name).trim() + '"' +
     (context && String(context).trim() ? (' — additional context from the rep: ' + String(context).trim()) : '') +
     ' using web search.\n\n' +
     'Produce:\n' +
-    '1. A 2-3 sentence company summary (industry, approximate size, what they do).\n' +
-    '2. 3-5 specific EHS/safety/compliance use cases where Evotix\'s Assure platform would likely help THIS company, ' +
-    'grounded in their actual industry, operations, and scale — not generic pitches.\n' +
-    '3. 2-4 recent, real news items (last 6-12 months) relevant to a sales outreach conversation — e.g. safety ' +
+    '1. A 2-3 sentence company summary (industry, approximate size/employee count, site/location count or ' +
+    'multi-region presence if you can find it, what they do).\n' +
+    '2. A segment classification: based on real signals you find (employee count, number of sites/locations, ' +
+    'multi-region or multinational presence, revenue) — NOT a guess — classify this company as "mid-market" or ' +
+    '"enterprise". If the signals are genuinely ambiguous or you found too little to tell, say "unclear" rather than ' +
+    'defaulting to one. Never assume a company is enterprise just because it is well-known, or mid-market just ' +
+    'because you found little about it — base it only on actual size/site signals.\n' +
+    '3. 3-5 specific EHS/safety/compliance use cases where Evotix would likely help THIS company, grounded in their ' +
+    'actual industry, operations, and scale. Reference the CORRECT platform by name for the segment you classified ' +
+    '(Assure for mid-market, 360 for enterprise) — do not default to naming Assure for every company, and do not ' +
+    'call a mid-market account "enterprise" or an enterprise account "mid-market" anywhere in the use cases.\n' +
+    '4. 2-4 recent, real news items (last 6-12 months) relevant to a sales outreach conversation — e.g. safety ' +
     'incidents, expansions, new facilities, leadership changes, regulatory news, sustainability initiatives. Only ' +
     'include real items found via search; do not invent news. If nothing recent turns up, return an empty array.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
-    '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
+    '{"summary":"...","segment":"mid-market|enterprise|unclear","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
     'sentence before or after it.';
 
