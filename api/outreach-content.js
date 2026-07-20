@@ -127,6 +127,17 @@ export default async function handler(req, res) {
     ? ('Follow this framework/structure the rep provided — adapt it to this contact and stage, don\'t just fill in blanks mechanically:\n---\n' + String(framework).trim() + '\n---\n')
     : '';
 
+  // The rep asked for this explicitly: generated copy was reading as obviously
+  // AI-written. Em dashes as a clause separator and a handful of stock phrases
+  // are the biggest tells, so ban them outright rather than just asking for
+  // "natural" tone in the abstract.
+  const HUMANIZE_RULES = [
+    'Never use an em dash, en dash, or double hyphen (—, –, --) as a clause separator. Write it as two short sentences, or join the clause with "and", "but", "so", or a comma instead. Hyphens are fine only inside an actual compound word, like "follow-up" or "self-service".',
+    'Do not use AI-sounding stock phrases or filler, e.g. "I hope this finds you well", "in today\'s fast-paced/ever-evolving world", "delve into", "leverage", "seamless", "game-changer", "unlock", "streamline", "robust", "furthermore", "moreover", "at the end of the day".',
+    'Write the way this rep would actually type it at their desk: contractions are fine, sentence length should vary, and don\'t force a "rule of three" list or perfectly parallel structure in every line.',
+    'No markdown formatting, no bullet symbols, no em-dash-separated asides — plain sentences a real person would send.'
+  ];
+
   // Cold-call opener technique, drawn from Jeremy Miner/NEPQ-style pattern
   // interrupts and 2026 B2B cold-calling data: openers that state the specific
   // reason for calling convert ~2.1x better than jumping straight into a pitch,
@@ -166,6 +177,7 @@ export default async function handler(req, res) {
       sequenceStage() + '\n\n' +
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
+      'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
       'specific person\'s role and seniority (see the framing note above), not a generic pitch that would read the ' +
@@ -182,6 +194,7 @@ export default async function handler(req, res) {
           'something specific and real about their company. Do not pitch yet, just earn the connection.\n'
         : 'This is a LinkedIn FOLLOW-UP message after connecting — keep it under 80 words, casual and low-pressure, ' +
           'reference something specific and real about their company.\n') +
+      'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'The angle MUST reflect this specific person\'s role and seniority (see the framing note above) — not a generic ' +
       'pitch that would read the same regardless of who it\'s addressed to.';
@@ -204,6 +217,7 @@ export default async function handler(req, res) {
       'would recognize, not generic software-speak.\n\n' +
       'CLOSE — one short, low-pressure line that transitions from discovery into asking for a meeting, referencing ' +
       'what would have just been uncovered rather than a generic "can we set up a call?"\n\n' +
+      'Sound like a real person talking, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'Everything MUST reflect this specific person\'s role, seniority, and industry (see the framing note above) — ' +
       'not a generic script that would read the same for any prospect.';
@@ -214,10 +228,44 @@ export default async function handler(req, res) {
 
   try {
     const data = await callClaude(apiKey, prompt, maxTokens, TOOL_SCHEMAS[type]);
-    return res.status(200).json(data);
+    return res.status(200).json(humanizeOutput(type, data));
   } catch (e) {
     return res.status(500).json({ error: 'outreach content failed: ' + (e && e.message ? e.message : String(e)) });
   }
+}
+
+// Backstop for the em-dash/AI-tell instructions above — the model mostly
+// complies, but a deterministic pass catches the cases it doesn't, rather
+// than relying purely on the prompt.
+function humanizeText(s) {
+  if (!s || typeof s !== 'string') return s;
+  return s
+    .replace(/\s*[—–]\s*/g, ', ')
+    .replace(/\s+--\s+/g, ', ')
+    .replace(/^[-*]\s+/gm, '')
+    .replace(/,\s*,/g, ',')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+function humanizeOutput(type, data) {
+  if (type === 'email') {
+    return { subject: humanizeText(data.subject), body: humanizeText(data.body) };
+  }
+  if (type === 'linkedin') {
+    return { body: humanizeText(data.body) };
+  }
+  if (type === 'callscript') {
+    return {
+      opener: humanizeText(data.opener),
+      close: humanizeText(data.close),
+      questions: (Array.isArray(data.questions) ? data.questions : []).map((g) => ({
+        category: g && g.category,
+        items: Array.isArray(g && g.items) ? g.items.map(humanizeText) : []
+      }))
+    };
+  }
+  return data;
 }
 
 // Free-text-then-parse-the-JSON was fragile: multi-beat script content (the
