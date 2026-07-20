@@ -1,13 +1,20 @@
 // ============================================================
 // POST /api/company-research
 // Body: { type: 'company'|'contacts', name: 'Acme Manufacturing', context: '...' }
-// Outreach CRM's research helper — uses Claude's server-side web search
-// tool to research a prospect company for a BDR at Evotix.
+// Outreach CRM's research helper.
 // ANTHROPIC_API_KEY stays server-side only (never sent to the browser).
 //
 // Two modes, dispatched by `type` (same pattern as api/outreach-content.js):
 //   'company'  -> { summary, useCases: [...], recentNews: [{headline, note}], sources: [...] }
+//                 uses Claude's server-side web search tool.
 //   'contacts' -> { suggestedContacts: [{name, title, note, url}] }
+//                 tries ZoomInfo's Search + Enrich Contact APIs first (real,
+//                 verified contacts with LinkedIn URLs) if ZOOMINFO_CLIENT_ID /
+//                 ZOOMINFO_CLIENT_SECRET are configured; falls back to the
+//                 same Claude web-search approach as before if ZoomInfo isn't
+//                 configured, errors, or comes up empty. Same response shape
+//                 either way, so outreach.html needs no changes.
+//
 // These used to be two separate serverless functions, but the Vercel Hobby
 // plan caps a deployment at 12 functions (see the "Consolidate Plaid and
 // WHOOP endpoints" fix for the exact same problem) -- adding a 13th function
@@ -34,6 +41,13 @@ export default async function handler(req, res) {
   const { type, name, context } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'company name required' });
 
+  if (type === 'contacts') {
+    const zi = await findZoomInfoContacts(String(name).trim()).catch(() => null);
+    if (zi && zi.suggestedContacts.length) return res.status(200).json(zi);
+    // Falls through to the Claude web-search path below if ZoomInfo isn't
+    // configured (env vars unset), errored, or found nothing.
+  }
+
   const prompt = type === 'contacts' ? buildContactsPrompt(name, context) : buildCompanyPrompt(name, context);
   const errPrefix = type === 'contacts' ? 'contact research failed: ' : 'company research failed: ';
 
@@ -59,6 +73,119 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: errPrefix + (e && e.message ? e.message : String(e)) });
   }
+}
+
+// ---------- ZoomInfo (tried first for 'contacts'; real, verified data) ----------
+
+const ZOOMINFO_JOB_TITLES =
+  'VP of Safety OR VP of EHS OR Director of EHS OR Director of Safety OR Head of Health and Safety OR ' +
+  'Head of Safety OR EHS Manager OR Safety Manager OR Director of Risk OR Director of Compliance';
+
+async function getZoomInfoToken(clientId, clientSecret) {
+  const basic = Buffer.from(clientId + ':' + clientSecret).toString('base64');
+  const r = await fetch('https://api.zoominfo.com/gtm/oauth/v1/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
+      'Authorization': 'Basic ' + basic,
+    },
+    body: 'grant_type=client_credentials',
+  });
+  if (!r.ok) throw new Error('zoominfo auth failed (' + r.status + ')');
+  const data = await r.json();
+  if (!data.access_token) throw new Error('zoominfo auth: no access_token in response');
+  return data.access_token;
+}
+
+async function findZoomInfoContacts(companyName) {
+  const clientId = process.env.ZOOMINFO_CLIENT_ID;
+  const clientSecret = process.env.ZOOMINFO_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null; // not configured — caller falls back to AI search
+
+  const token = await getZoomInfoToken(clientId, clientSecret);
+
+  const searchParams = new URLSearchParams();
+  searchParams.set('page[size]', '10');
+  searchParams.set('sort', 'relevance');
+
+  const searchRes = await fetch('https://api.zoominfo.com/gtm/data/v1/contacts/search?' + searchParams.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/vnd.api+json',
+      'Authorization': 'Bearer ' + token,
+    },
+    body: JSON.stringify({
+      data: {
+        type: 'ContactSearch',
+        attributes: {
+          companyName: companyName,
+          jobTitle: ZOOMINFO_JOB_TITLES,
+        },
+      },
+    }),
+  });
+  if (!searchRes.ok) throw new Error('zoominfo search failed (' + searchRes.status + ')');
+  const searchData = await searchRes.json();
+  const candidates = (searchData && searchData.data) || [];
+  if (!candidates.length) return { suggestedContacts: [] };
+
+  // Enrich costs a ZoomInfo credit per record, so only spend it on the top
+  // few matches — matches the "up to 3" cap the AI-search fallback also uses.
+  const top = candidates.slice(0, 3);
+  const personIds = top
+    .map((c) => parseInt(c.id, 10))
+    .filter((id) => !isNaN(id));
+
+  if (!personIds.length) {
+    return { suggestedContacts: top.map((c) => previewToContact(c)) };
+  }
+
+  const enrichRes = await fetch('https://api.zoominfo.com/gtm/data/v1/contacts/enrich', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/vnd.api+json',
+      'Authorization': 'Bearer ' + token,
+    },
+    body: JSON.stringify({
+      data: {
+        type: 'ContactEnrich',
+        attributes: {
+          matchPersonInput: personIds.map((personId) => ({ personId: personId })),
+          outputFields: ['firstName', 'lastName', 'jobTitle', 'email', 'companyName', 'externalUrls'],
+        },
+      },
+    }),
+  });
+  if (!enrichRes.ok) {
+    // Enrich failed but search worked — still return names/titles, just no LinkedIn/email.
+    return { suggestedContacts: top.map((c) => previewToContact(c)) };
+  }
+  const enrichData = await enrichRes.json();
+  const records = ((enrichData && enrichData.data) || []).filter((r) => r.type === 'Contact');
+  if (!records.length) return { suggestedContacts: top.map((c) => previewToContact(c)) };
+
+  const suggestedContacts = records.map((r) => {
+    const a = r.attributes || {};
+    const linkedin = (a.externalUrls || []).find((u) => u.type === 'LINKED_IN');
+    return {
+      name: [a.firstName, a.lastName].filter(Boolean).join(' '),
+      title: a.jobTitle || '',
+      note: 'Found via ZoomInfo' + (a.email ? ' — email on file' : ''),
+      url: linkedin ? linkedin.url : ''
+    };
+  });
+  return { suggestedContacts: suggestedContacts };
+}
+
+function previewToContact(c) {
+  const a = c.attributes || {};
+  return {
+    name: [a.firstName, a.lastName].filter(Boolean).join(' '),
+    title: a.jobTitle || '',
+    note: 'Found via ZoomInfo contact search',
+    url: ''
+  };
 }
 
 function buildCompanyPrompt(name, context) {
