@@ -4,7 +4,11 @@
 // Outreach CRM's company-research helper — uses Claude's server-side
 // web search tool to research a prospect company for a BDR at Evotix.
 // ANTHROPIC_API_KEY stays server-side only (never sent to the browser).
-// Returns { summary, useCases: [...], recentNews: [{headline, note}], sources: [...] }.
+// Returns { summary, useCases: [...], recentNews: [{headline, note}],
+//           suggestedContacts: [{name, title, note, url}], sources: [...] }.
+// suggestedContacts is best-effort from public search (company site,
+// press, conference bios, indexed LinkedIn results) — the model is
+// instructed to leave `name` blank rather than invent one it can't verify.
 // ============================================================
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -34,14 +38,25 @@ export default async function handler(req, res) {
     'grounded in their actual industry, operations, and scale — not generic pitches.\n' +
     '3. 2-4 recent, real news items (last 6-12 months) relevant to a sales outreach conversation — e.g. safety ' +
     'incidents, expansions, new facilities, leadership changes, regulatory news, sustainability initiatives. Only ' +
-    'include real items found via search; do not invent news. If nothing recent turns up, return an empty array.\n\n' +
+    'include real items found via search; do not invent news. If nothing recent turns up, return an empty array.\n' +
+    '4. 2-5 likely EHS/Safety decision-makers at this company — titles like VP of Safety, Director of EHS, Head of ' +
+    'Health & Safety, EHS Manager, Director of Risk/Compliance. Search the company\'s own site (leadership/about/team ' +
+    'pages), press releases, conference speaker bios, industry articles, and indexed LinkedIn search results for REAL, ' +
+    'CURRENT names in these roles. Do not invent a person\'s name under any circumstances — you cannot log into ' +
+    'LinkedIn or see private profiles, so only report a name if it\'s corroborated by an actual page you found. If you ' +
+    'can\'t confirm a specific name for a relevant title, still include the title with an empty "name" so the rep knows ' +
+    'what role to look for, and note where you\'d suggest looking (e.g. "search LinkedIn for \'VP Safety\' at this ' +
+    'company"). For each entry include a one-line note on where/how you found it (or why you\'re suggesting the title) ' +
+    'and a source URL if you have a real one.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
-    '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
+    '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],' +
+    '"suggestedContacts":[{"name":"... or empty string if unconfirmed","title":"...","note":"...","url":"... or empty string"}],' +
+    '"sources":["url1","url2"]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
     'sentence before or after it.';
 
   try {
-    const content = await callClaudeWithSearch(apiKey, prompt, 2500);
+    const content = await callClaudeWithSearch(apiKey, prompt, 3000);
     const jsonStr = extractLastJson(content);
     let data;
     try { data = JSON.parse(jsonStr); } catch (e) { throw new Error('could not parse research from the model'); }
