@@ -115,7 +115,11 @@ export default async function handler(req, res) {
     : '';
 
   const priorBlock = (Array.isArray(priorMessages) && priorMessages.length)
-    ? ('Previous messages already sent to this contact (do not repeat these angles — build on them or take a new one):\n' +
+    ? ((n <= 0
+         ? 'Previously drafted (but not yet sent) versions of this SAME initial touch — the rep didn\'t like these and ' +
+           'wants a genuinely different take, not a follow-up: use a different specific detail (a different news item, ' +
+           'use case, or angle) so this doesn\'t read like a near-duplicate:\n'
+         : 'Previous messages already sent to this contact (do not repeat these angles — build on them or take a new one):\n') +
        priorMessages.map((m, i) => (i + 1) + '. ' + (m.subject ? (m.subject + ' — ') : '') + (m.body || '')).join('\n') + '\n')
     : '';
 
@@ -207,7 +211,7 @@ export default async function handler(req, res) {
       'not a generic script that would read the same for any prospect. ' +
       'Return ONLY JSON: {"opener":"...","questions":[{"category":"...","items":["...","..."]}],"close":"..."}. ' +
       'No preamble, no markdown fences.';
-    maxTokens = 1200;
+    maxTokens = 1600;
   } else {
     return res.status(400).json({ error: 'unknown type' });
   }
@@ -217,12 +221,57 @@ export default async function handler(req, res) {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
     if (start === -1 || end === -1 || end < start) throw new Error('no JSON object found in response');
+    const raw = text.slice(start, end + 1);
     let data;
-    try { data = JSON.parse(text.slice(start, end + 1)); } catch (e) { throw new Error('could not parse response from the model'); }
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      try { data = JSON.parse(sanitizeJsonStrings(raw)); }
+      catch (e2) { throw new Error('could not parse response from the model'); }
+    }
     return res.status(200).json(data);
   } catch (e) {
     return res.status(500).json({ error: 'outreach content failed: ' + (e && e.message ? e.message : String(e)) });
   }
+}
+
+// Multi-beat outputs (the call script opener especially) tempt the model into
+// writing real line breaks inside JSON string values instead of escaping them
+// as \n, which JSON.parse rejects as a bad control character. This walks the
+// text tracking whether we're inside a string (respecting \" escapes) and
+// escapes raw control characters only there, leaving pretty-print whitespace
+// between tokens untouched.
+function sanitizeJsonStrings(text) {
+  let out = '';
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) {
+        out += ch;
+        escaped = false;
+      } else if (ch === '\\') {
+        out += ch;
+        escaped = true;
+      } else if (ch === '"') {
+        out += ch;
+        inString = false;
+      } else if (ch === '\n') {
+        out += '\\n';
+      } else if (ch === '\r') {
+        out += '\\r';
+      } else if (ch === '\t') {
+        out += '\\t';
+      } else {
+        out += ch;
+      }
+    } else {
+      out += ch;
+      if (ch === '"') inString = true;
+    }
+  }
+  return out;
 }
 
 async function callClaude(apiKey, prompt, maxTokens) {

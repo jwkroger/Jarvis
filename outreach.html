@@ -582,7 +582,11 @@ body::after {
   /* ---------- email / linkedin generation — scoped to one contact ---------- */
   // touchCount is the contact's touchpoint count *before* this generation, so
   // the server can stage the message (cold open -> follow-up -> break-up)
-  // instead of writing the same pitch every time.
+  // instead of writing the same pitch every time. A touchpoint is only logged
+  // when the rep marks a draft "Sent" (see markContactMessageSent) — generating
+  // a draft on its own does NOT count as a touch, so regenerating a different
+  // take on the initial email/LinkedIn (e.g. a different news angle) before
+  // picking one to send won't get mistaken for a follow-up.
   async function generateContactEmail(id, contactId, btnEl) {
     const items = load();
     const c = items[findById(items, id)];
@@ -605,10 +609,7 @@ body::after {
         const ct = (co.contacts || []).find((x) => x.id === contactId);
         if (!ct) return;
         ct.emails = ct.emails || [];
-        ct.emails.push({ subject: data.subject || '', body: data.body || '', generatedAt: Date.now() });
-        ct.touchpoints = ct.touchpoints || [];
-        ct.touchpoints.push({ id: newId(), date: new Date().toISOString().slice(0, 10), type: 'Email', note: 'Drafted: ' + (data.subject || '') });
-        ct.touchpoints.sort((a, b) => a.date.localeCompare(b.date));
+        ct.emails.push({ subject: data.subject || '', body: data.body || '', generatedAt: Date.now(), sent: false });
       });
     } catch (e) {
       alert('Couldn\'t generate email: ' + (e && e.message ? e.message : 'try again.'));
@@ -639,10 +640,7 @@ body::after {
         const ct = (co.contacts || []).find((x) => x.id === contactId);
         if (!ct) return;
         ct.linkedin = ct.linkedin || [];
-        ct.linkedin.push({ body: data.body || '', generatedAt: Date.now() });
-        ct.touchpoints = ct.touchpoints || [];
-        ct.touchpoints.push({ id: newId(), date: new Date().toISOString().slice(0, 10), type: 'LinkedIn', note: 'Drafted a message' });
-        ct.touchpoints.sort((a, b) => a.date.localeCompare(b.date));
+        ct.linkedin.push({ body: data.body || '', generatedAt: Date.now(), sent: false });
       });
     } catch (e) {
       alert('Couldn\'t generate LinkedIn message: ' + (e && e.message ? e.message : 'try again.'));
@@ -650,6 +648,23 @@ body::after {
       btnEl.disabled = false;
       btnEl.textContent = origLabel;
     }
+  }
+
+  // Marks one specific drafted email/LinkedIn message as the version actually
+  // sent — this is the ONLY thing that logs a touchpoint for it, which is what
+  // advances touchCount (and therefore the cold-open -> follow-up staging) and
+  // what shows up in the contact's Activity log.
+  function markContactMessageSent(id, contactId, listKey, generatedAt, touchType, touchNote) {
+    updateCompany(id, (co) => {
+      const ct = (co.contacts || []).find((x) => x.id === contactId);
+      if (!ct) return;
+      const list = ct[listKey] || [];
+      const item = list.find((m) => m.generatedAt === generatedAt);
+      if (item) item.sent = true;
+      ct.touchpoints = ct.touchpoints || [];
+      ct.touchpoints.push({ id: newId(), date: new Date().toISOString().slice(0, 10), type: touchType, note: touchNote });
+      ct.touchpoints.sort((a, b) => a.date.localeCompare(b.date));
+    });
   }
 
   // Call scripts are prep material, not a sent touch — the actual call still
@@ -1111,6 +1126,20 @@ body::after {
           copyBtn.type = 'button';
           copyBtn.textContent = '📋 Copy Email';
           copyBtn.addEventListener('click', () => copyText(latest.subject + '\n\n' + latest.body, copyBtn));
+          const sentBtn = document.createElement('button');
+          sentBtn.className = 'mini-btn';
+          sentBtn.type = 'button';
+          if (latest.sent) {
+            sentBtn.textContent = '✓ Sent';
+            sentBtn.disabled = true;
+          } else {
+            sentBtn.textContent = '✓ Mark as Sent';
+            sentBtn.addEventListener('click', () => {
+              markContactMessageSent(id, contact.id, 'emails', latest.generatedAt, 'Email', 'Sent: ' + (latest.subject || ''));
+              dismissedDrafts.add(emailKey);
+              renderModal(id);
+            });
+          }
           const closeBtn = document.createElement('button');
           closeBtn.className = 'mini-btn';
           closeBtn.type = 'button';
@@ -1119,7 +1148,7 @@ body::after {
             dismissedDrafts.add(emailKey);
             renderModal(id);
           });
-          foot.append(copyBtn, closeBtn);
+          foot.append(copyBtn, sentBtn, closeBtn);
           box.append(subj, body, foot);
           genWrap.appendChild(box);
         }
@@ -1144,6 +1173,20 @@ body::after {
           copyBtn.type = 'button';
           copyBtn.textContent = '📋 Copy LinkedIn';
           copyBtn.addEventListener('click', () => copyText(latest.body, copyBtn));
+          const sentBtn = document.createElement('button');
+          sentBtn.className = 'mini-btn';
+          sentBtn.type = 'button';
+          if (latest.sent) {
+            sentBtn.textContent = '✓ Sent';
+            sentBtn.disabled = true;
+          } else {
+            sentBtn.textContent = '✓ Mark as Sent';
+            sentBtn.addEventListener('click', () => {
+              markContactMessageSent(id, contact.id, 'linkedin', latest.generatedAt, 'LinkedIn', 'Sent a LinkedIn message');
+              dismissedDrafts.add(liKey);
+              renderModal(id);
+            });
+          }
           const closeBtn = document.createElement('button');
           closeBtn.className = 'mini-btn';
           closeBtn.type = 'button';
@@ -1152,7 +1195,7 @@ body::after {
             dismissedDrafts.add(liKey);
             renderModal(id);
           });
-          foot.append(copyBtn, closeBtn);
+          foot.append(copyBtn, sentBtn, closeBtn);
           box.append(body, foot);
           genWrap.appendChild(box);
         }
