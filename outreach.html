@@ -670,7 +670,7 @@ body::after {
   // Call scripts are prep material, not a sent touch — the actual call still
   // gets logged separately via the "Log Call" panel, so generation here does
   // not push a touchpoint (unlike drafting an email/LinkedIn message).
-  async function generateContactCallScript(id, contactId, btnEl) {
+  async function generateContactCallScript(id, contactId, btnEl, variant) {
     const items = load();
     const c = items[findById(items, id)];
     const contact = c && (c.contacts || []).find((ct) => ct.id === contactId);
@@ -684,7 +684,8 @@ body::after {
         company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
         contact: { name: contact.name, title: contact.title, notes: contact.notes },
         touchCount: (contact.touchpoints || []).length,
-        priorMessages: (contact.callScripts || []).slice(-4).map((cs) => ({ body: 'Opener: ' + (cs.opener || '') + (cs.close ? (' | Close: ' + cs.close) : '') }))
+        priorMessages: (contact.callScripts || []).slice(-4).map((cs) => ({ body: 'Opener: ' + (cs.opener || '') + (cs.close ? (' | Close: ' + cs.close) : '') })),
+        variantRequest: !!variant
       });
       updateCompany(id, (co) => {
         const ct = (co.contacts || []).find((x) => x.id === contactId);
@@ -1242,6 +1243,11 @@ body::after {
           copyBtn.type = 'button';
           copyBtn.textContent = '📋 Copy Script';
           copyBtn.addEventListener('click', () => copyText(formatCallScript(latest), copyBtn));
+          const variantBtn = document.createElement('button');
+          variantBtn.className = 'mini-btn';
+          variantBtn.type = 'button';
+          variantBtn.textContent = '🔀 Different Version';
+          variantBtn.addEventListener('click', () => generateContactCallScript(id, contact.id, variantBtn, true));
           const dismissBtn = document.createElement('button');
           dismissBtn.className = 'mini-btn';
           dismissBtn.type = 'button';
@@ -1250,7 +1256,7 @@ body::after {
             dismissedDrafts.add(csKey);
             renderModal(id);
           });
-          foot.append(copyBtn, dismissBtn);
+          foot.append(copyBtn, variantBtn, dismissBtn);
           box.appendChild(foot);
           genWrap.appendChild(box);
         }

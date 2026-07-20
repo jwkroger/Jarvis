@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { type, company, contact, framework, touchCount, priorMessages } = req.body || {};
+  const { type, company, contact, framework, touchCount, priorMessages, variantRequest } = req.body || {};
   if (!company || !company.name) return res.status(400).json({ error: 'company required' });
   if (!contact || !contact.name) return res.status(400).json({ error: 'contact required' });
 
@@ -152,6 +152,16 @@ export default async function handler(req, res) {
     ? ('Follow this framework/structure the rep provided — adapt it to this contact and stage, don\'t just fill in blanks mechanically:\n---\n' + String(framework).trim() + '\n---\n')
     : '';
 
+  // Explicit "give me another take" trigger (the call script's dedicated
+  // Different Version button) rather than relying only on the implicit n<=0
+  // branch of priorBlock above — this fires regardless of touch count.
+  const variantBlock = variantRequest
+    ? 'The rep explicitly asked for a DIFFERENT VERSION, not a near-duplicate: use a different specific news item or ' +
+      'detail than any referenced in the prior versions above (if the company has more than one), and use a genuinely ' +
+      'different opening angle/pattern-interrupt style than any prior version below, not just a reworded restatement ' +
+      'of the same one.\n'
+    : '';
+
   // The rep asked for this explicitly: generated copy was reading as obviously
   // AI-written. Em dashes as a clause separator and a handful of stock phrases
   // are the biggest tells, so ban them outright rather than just asking for
@@ -234,7 +244,9 @@ export default async function handler(req, res) {
       'curious spoken questions, never interrogation-style) for the discovery bullets that follow.\n\n' +
       researchBlock + '\n' + sequenceStage() + '\n\n' +
       'OPENER — write this as an ACTUAL word-for-word script, not a description:\n' +
-      CALL_OPENER_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
+      CALL_OPENER_RULES.map((r) => '- ' + r).join('\n') + '\n' +
+      meddpiccAngle() + ' If it doesn\'t fit naturally in the opener itself, it\'s fine for it to show up in the ' +
+      'discovery questions instead.\n\n' +
       'DISCOVERY QUESTIONS — bullet points only (not full scripted lines), tailored specifically to this contact\'s ' +
       'role, industry, and the company research/notes above. For EACH category below, write 2-4 tailored questions:\n' +
       MEDDPICC_CATEGORIES.map((c) => '- ' + c.category + ': ' + c.guidance).join('\n') + '\n' +
@@ -245,7 +257,7 @@ export default async function handler(req, res) {
       'CLOSE — one short, low-pressure line that transitions from discovery into asking for a meeting, referencing ' +
       'what would have just been uncovered rather than a generic "can we set up a call?"\n\n' +
       'Sound like a real person talking, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
-      frameworkBlock + notesRepeatRule + priorBlock +
+      frameworkBlock + notesRepeatRule + variantBlock + priorBlock +
       'Everything MUST reflect this specific person\'s role, seniority, and industry (see the framing note above) — ' +
       'not a generic script that would read the same for any prospect.';
     maxTokens = 1600;
