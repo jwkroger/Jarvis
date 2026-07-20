@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "api/company-research.js": {
+      "maxDuration": 120
+    },
+    "api/outreach-content.js": {
+      "maxDuration": 60
+    },
+    "api/pt-content.js": {
+      "maxDuration": 60
+    },
+    "api/nova.js": {
+      "maxDuration": 60
+    }
+  }
+}

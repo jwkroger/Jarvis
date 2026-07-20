@@ -14,11 +14,13 @@
 // broke every deploy. One function, two request shapes, called in parallel
 // by the client, keeps the "split the work so neither call times out"
 // benefit without adding a function.
+//
+// Duration is configured in vercel.json (functions."api/company-research.js")
+// rather than the inline `export const config` this file used to have --
+// requests were still 504ing at ~10-15s with Fluid Compute already enabled
+// and the inline config in place, so vercel.json is the more authoritative
+// mechanism to try next.
 // ============================================================
-export const config = {
-  maxDuration: 60,
-};
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -36,12 +38,14 @@ export default async function handler(req, res) {
   const errPrefix = type === 'contacts' ? 'contact research failed: ' : 'company research failed: ';
 
   // Hard cap on tool invocations, enforced by the API itself rather than a
-  // prompt request the model can (and did) ignore — contacts search kept
-  // 504ing even after being told "at most 2 searches" in plain English.
-  const maxUses = type === 'contacts' ? 2 : 4;
+  // prompt request the model can (and did) ignore. Contacts gets more room
+  // than the earlier 2 — that was so tight the model kept bailing to
+  // "name unconfirmed" instead of actually verifying a lead it had found;
+  // better to let it dig further and take longer than return blanks.
+  const maxUses = type === 'contacts' ? 6 : 4;
 
   try {
-    const result = await callClaudeWithSearch(apiKey, prompt, type === 'contacts' ? 1800 : 2500, maxUses);
+    const result = await callClaudeWithSearch(apiKey, prompt, type === 'contacts' ? 2200 : 2500, maxUses);
     const jsonStr = extractLastJson(result.content);
     let data;
     try {
@@ -90,17 +94,18 @@ function buildContactsPrompt(name, context) {
     (context && String(context).trim() ? (' (context from the rep: ' + String(context).trim() + ')') : '') + '.\n\n' +
     'Find up to 3 likely EHS/Safety decision-makers at this company — titles like VP of Safety, Director of EHS, Head ' +
     'of Health & Safety, EHS Manager, Director of Risk/Compliance.\n\n' +
-    'IMPORTANT — work fast, this has a hard time limit: do AT MOST 2 web searches total, then answer with whatever ' +
-    'you\'ve found. Do not try to check every possible source. Two well-chosen searches is enough, e.g. ' +
-    '\'"[company]" "VP of Safety" OR "Director of EHS"\' and, if that doesn\'t turn up a name, ' +
-    '\'site:linkedin.com "[company]" safety director\'. Stop after that and answer — do not keep searching to be ' +
-    'thorough.\n\n' +
+    'Finding a real, confirmed name is much more valuable than answering quickly — take the time to actually verify ' +
+    'one. Search from multiple angles rather than giving up after one attempt: the company\'s own leadership/about/' +
+    'team pages, press releases and news mentions, conference speaker bios, industry articles, and LinkedIn results ' +
+    'that show up in web search (title + company, even without full profile access). If your first search doesn\'t ' +
+    'turn up a name, try rephrasing it or searching a different source before concluding it\'s unconfirmed — only ' +
+    'fall back to a title-only entry after you\'ve genuinely tried more than one angle.\n\n' +
     'Do not invent a person\'s name under any circumstances — you cannot log into LinkedIn or see private profiles, so ' +
-    'only report a name if it\'s corroborated by an actual page you found. If your 2 searches don\'t confirm a name for ' +
-    'a relevant title, still include the title with an empty "name" so the rep knows what role to look for, and use ' +
-    '"note" to suggest where to look manually (e.g. "search LinkedIn for \'VP Safety\' at this company"). For each ' +
-    'entry, "note" should say where/how you found it (or why you\'re suggesting the title), and include a source URL ' +
-    'if you have a real one.\n\n' +
+    'only report a name if it\'s corroborated by an actual page you found. If you truly can\'t confirm a name for ' +
+    'a relevant title after multiple attempts, still include the title with an empty "name" so the rep knows what ' +
+    'role to look for, and use "note" to suggest where to look manually (e.g. "search LinkedIn for \'VP Safety\' at ' +
+    'this company"). For each entry, "note" should say where/how you found it (or why you\'re suggesting the title), ' +
+    'and include a source URL if you have a real one.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
     '{"suggestedContacts":[{"name":"... or empty string if unconfirmed","title":"...","note":"...","url":"... or empty string"}]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process.'
@@ -134,13 +139,10 @@ async function callClaudeWithSearch(apiKey, prompt, maxTokens, maxUses) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        // Sonnet 5, not Opus, deliberately: this call is timing out around
-        // 10-15s in production (Vercel's actual enforced limit, regardless
-        // of the maxDuration: 60 configured above — likely because Fluid
-        // Compute isn't enabled on the project, which is the one place that
-        // config actually needs a dashboard toggle, not a code change).
-        // Sonnet 5 is built for this speed/quality tradeoff and meaningfully
-        // cuts tool-loop latency without giving up much on a task this size.
+        // Sonnet 5, not Opus, deliberately — faster per-token and per-turn
+        // than Opus while still solid at this kind of extraction task, which
+        // matters now that max_uses lets the contacts search run several
+        // rounds looking for a real name.
         model: 'claude-sonnet-5',
         max_tokens: maxTokens,
         tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: maxUses }],
