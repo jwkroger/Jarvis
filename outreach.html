@@ -736,6 +736,7 @@ body::after {
   /* ---------- profile modal ---------- */
   let openId = null;
   const openCallPanels = new Set(); // UI-only state: which contacts' call-note panels are expanded
+  const dismissedDrafts = new Set(); // UI-only state: which generated drafts the user closed (key: contactId:type:generatedAt)
 
   function openModal(id) {
     openId = id;
@@ -1041,24 +1042,35 @@ body::after {
       const emails = contact.emails || [];
       if (emails.length) {
         const latest = emails[emails.length - 1];
-        const box = document.createElement('div');
-        box.className = 'generated-box';
-        const subj = document.createElement('div');
-        subj.className = 'generated-subject';
-        subj.textContent = latest.subject;
-        const body = document.createElement('div');
-        body.className = 'generated-body';
-        body.textContent = latest.body;
-        const foot = document.createElement('div');
-        foot.className = 'generated-foot';
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'mini-btn';
-        copyBtn.type = 'button';
-        copyBtn.textContent = '📋 Copy Email';
-        copyBtn.addEventListener('click', () => copyText(latest.subject + '\n\n' + latest.body, copyBtn));
-        foot.appendChild(copyBtn);
-        box.append(subj, body, foot);
-        genWrap.appendChild(box);
+        const emailKey = contact.id + ':email:' + latest.generatedAt;
+        if (!dismissedDrafts.has(emailKey)) {
+          const box = document.createElement('div');
+          box.className = 'generated-box';
+          const subj = document.createElement('div');
+          subj.className = 'generated-subject';
+          subj.textContent = latest.subject;
+          const body = document.createElement('div');
+          body.className = 'generated-body';
+          body.textContent = latest.body;
+          const foot = document.createElement('div');
+          foot.className = 'generated-foot';
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'mini-btn';
+          copyBtn.type = 'button';
+          copyBtn.textContent = '📋 Copy Email';
+          copyBtn.addEventListener('click', () => copyText(latest.subject + '\n\n' + latest.body, copyBtn));
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'mini-btn';
+          closeBtn.type = 'button';
+          closeBtn.textContent = '✕ Close';
+          closeBtn.addEventListener('click', () => {
+            dismissedDrafts.add(emailKey);
+            renderModal(id);
+          });
+          foot.append(copyBtn, closeBtn);
+          box.append(subj, body, foot);
+          genWrap.appendChild(box);
+        }
         if (emails.length > 1) {
           genWrap.appendChild(buildHistoryToggle(emails.slice(0, -1).reverse(), (e) => e.subject + '\n' + e.body));
         }
@@ -1066,21 +1078,32 @@ body::after {
       const linkedinMsgs = contact.linkedin || [];
       if (linkedinMsgs.length) {
         const latest = linkedinMsgs[linkedinMsgs.length - 1];
-        const box = document.createElement('div');
-        box.className = 'generated-box';
-        const body = document.createElement('div');
-        body.className = 'generated-body';
-        body.textContent = latest.body;
-        const foot = document.createElement('div');
-        foot.className = 'generated-foot';
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'mini-btn';
-        copyBtn.type = 'button';
-        copyBtn.textContent = '📋 Copy LinkedIn';
-        copyBtn.addEventListener('click', () => copyText(latest.body, copyBtn));
-        foot.appendChild(copyBtn);
-        box.append(body, foot);
-        genWrap.appendChild(box);
+        const liKey = contact.id + ':linkedin:' + latest.generatedAt;
+        if (!dismissedDrafts.has(liKey)) {
+          const box = document.createElement('div');
+          box.className = 'generated-box';
+          const body = document.createElement('div');
+          body.className = 'generated-body';
+          body.textContent = latest.body;
+          const foot = document.createElement('div');
+          foot.className = 'generated-foot';
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'mini-btn';
+          copyBtn.type = 'button';
+          copyBtn.textContent = '📋 Copy LinkedIn';
+          copyBtn.addEventListener('click', () => copyText(latest.body, copyBtn));
+          const closeBtn = document.createElement('button');
+          closeBtn.className = 'mini-btn';
+          closeBtn.type = 'button';
+          closeBtn.textContent = '✕ Close';
+          closeBtn.addEventListener('click', () => {
+            dismissedDrafts.add(liKey);
+            renderModal(id);
+          });
+          foot.append(copyBtn, closeBtn);
+          box.append(body, foot);
+          genWrap.appendChild(box);
+        }
         if (linkedinMsgs.length > 1) {
           genWrap.appendChild(buildHistoryToggle(linkedinMsgs.slice(0, -1).reverse(), (m) => m.body));
         }
