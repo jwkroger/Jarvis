@@ -35,8 +35,13 @@ export default async function handler(req, res) {
   const prompt = type === 'contacts' ? buildContactsPrompt(name, context) : buildCompanyPrompt(name, context);
   const errPrefix = type === 'contacts' ? 'contact research failed: ' : 'company research failed: ';
 
+  // Hard cap on tool invocations, enforced by the API itself rather than a
+  // prompt request the model can (and did) ignore — contacts search kept
+  // 504ing even after being told "at most 2 searches" in plain English.
+  const maxUses = type === 'contacts' ? 2 : 4;
+
   try {
-    const result = await callClaudeWithSearch(apiKey, prompt, type === 'contacts' ? 1800 : 2500);
+    const result = await callClaudeWithSearch(apiKey, prompt, type === 'contacts' ? 1800 : 2500, maxUses);
     const jsonStr = extractLastJson(result.content);
     let data;
     try {
@@ -116,7 +121,7 @@ function extractLastJson(content) {
   return raw.slice(start, end + 1);
 }
 
-async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
+async function callClaudeWithSearch(apiKey, prompt, maxTokens, maxUses) {
   const messages = [{ role: 'user', content: prompt }];
   let attempts = 0;
   while (attempts < 4) {
@@ -138,7 +143,7 @@ async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
         // cuts tool-loop latency without giving up much on a task this size.
         model: 'claude-sonnet-5',
         max_tokens: maxTokens,
-        tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+        tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: maxUses }],
         messages: messages,
       }),
     });
