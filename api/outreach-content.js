@@ -1,7 +1,7 @@
 // ============================================================
 // POST /api/outreach-content
-// Body: { type: 'email'|'linkedin', company: {name, summary, useCases, recentNews},
-//         contact: {name, title}, framework: '...', touchCount: N, priorMessages: [{subject, body}] }
+// Body: { type: 'email'|'linkedin', company: {name, summary, useCases, recentNews, notes},
+//         contact: {name, title, notes}, framework: '...', touchCount: N, priorMessages: [{subject, body}] }
 // Outreach CRM's email / LinkedIn message generator — personalized to a specific
 // contact and aware of how many times they've already been touched, so the
 // message stages appropriately (cold open -> follow-up -> break-up) instead of
@@ -97,7 +97,21 @@ export default async function handler(req, res) {
          'about): ' + company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n')
       : '') +
     'Contact: ' + contact.name + (contact.title ? (', ' + contact.title) : '') + '\n' +
-    (contact.title ? (roleAngle(contact.title) + '\n') : '');
+    (contact.title ? (roleAngle(contact.title) + '\n') : '') +
+    (company.notes && String(company.notes).trim()
+      ? ('Rep\'s notes on this COMPANY (apply to outreach with ANY contact here — e.g. tools they use, org facts, ' +
+         'timing): ' + String(company.notes).trim() + '\n')
+      : '') +
+    (contact.notes && String(contact.notes).trim()
+      ? ('Rep\'s notes on THIS SPECIFIC CONTACT (personalize only their messages with this — e.g. something said on a ' +
+         'call): ' + String(contact.notes).trim() + '\n')
+      : '');
+
+  const notesRepeatRule = (company.notes || contact.notes)
+    ? 'If a note above states a fact (e.g. a tool they use, something said on a call), you may reference it — but check ' +
+      'the prior-messages list below first: if that exact fact was already mentioned in an earlier message to this ' +
+      'contact, do NOT restate it again. Either build on it from a new angle or leave it out this time.\n'
+    : '';
 
   const priorBlock = (Array.isArray(priorMessages) && priorMessages.length)
     ? ('Previous messages already sent to this contact (do not repeat these angles — build on them or take a new one):\n' +
@@ -116,7 +130,7 @@ export default async function handler(req, res) {
       sequenceStage() + '\n\n' +
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
-      frameworkBlock + priorBlock +
+      frameworkBlock + notesRepeatRule + priorBlock +
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
       'specific person\'s role and seniority (see the framing note above), not a generic pitch that would read the ' +
       'same regardless of who it\'s addressed to. Professional but conversational — not salesy or generic. ' +
@@ -133,7 +147,7 @@ export default async function handler(req, res) {
           'something specific and real about their company. Do not pitch yet, just earn the connection.\n'
         : 'This is a LinkedIn FOLLOW-UP message after connecting — keep it under 80 words, casual and low-pressure, ' +
           'reference something specific and real about their company.\n') +
-      frameworkBlock + priorBlock +
+      frameworkBlock + notesRepeatRule + priorBlock +
       'The angle MUST reflect this specific person\'s role and seniority (see the framing note above) — not a generic ' +
       'pitch that would read the same regardless of who it\'s addressed to. ' +
       'Return ONLY JSON: {"body":"..."}. No preamble, no markdown fences.';

@@ -469,6 +469,7 @@ body::after {
       passed: false,
       passedAt: null,
       winNotes: '',
+      notes: '',
       emails: [],
       linkedin: [],
       createdAt: Date.now()
@@ -532,6 +533,15 @@ body::after {
   function saveWinNotes(id, text) {
     updateCompany(id, (c) => { c.winNotes = text; });
   }
+  function saveCompanyNotes(id, text) {
+    updateCompany(id, (c) => { c.notes = text; });
+  }
+  function saveContactNotes(id, contactId, text) {
+    updateCompany(id, (c) => {
+      const contact = (c.contacts || []).find((ct) => ct.id === contactId);
+      if (contact) contact.notes = text;
+    });
+  }
 
   /* ---------- contacts + touchpoints ---------- */
   function addContact(id, name, title, email, linkedin) {
@@ -539,7 +549,7 @@ body::after {
     if (!title.trim()) { alert('Job title is required — it\'s what personalizes emails and LinkedIn messages to this contact.'); return; }
     updateCompany(id, (c) => {
       c.contacts = c.contacts || [];
-      c.contacts.push({ id: newId(), name: name.trim(), title: title.trim(), email: email.trim(), linkedin: linkedin.trim(), touchpoints: [] });
+      c.contacts.push({ id: newId(), name: name.trim(), title: title.trim(), email: email.trim(), linkedin: linkedin.trim(), notes: '', touchpoints: [] });
     });
   }
   function deleteContact(id, contactId) {
@@ -585,8 +595,8 @@ body::after {
     try {
       const data = await callApi('/api/outreach-content', {
         type: 'email',
-        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews },
-        contact: { name: contact.name, title: contact.title },
+        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
+        contact: { name: contact.name, title: contact.title, notes: contact.notes },
         framework: framework,
         touchCount: (contact.touchpoints || []).length,
         priorMessages: (contact.emails || []).slice(-4).map((e) => ({ subject: e.subject, body: e.body }))
@@ -619,8 +629,8 @@ body::after {
     try {
       const data = await callApi('/api/outreach-content', {
         type: 'linkedin',
-        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews },
-        contact: { name: contact.name, title: contact.title },
+        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
+        contact: { name: contact.name, title: contact.title, notes: contact.notes },
         framework: framework,
         touchCount: (contact.touchpoints || []).length,
         priorMessages: (contact.linkedin || []).slice(-4).map((m) => ({ body: m.body }))
@@ -840,6 +850,22 @@ body::after {
     }
     modal.appendChild(research);
 
+    // Company notes — applies to any contact at this company (competitive
+    // intel, general facts). Referenced in drafts but the model is told not
+    // to repeat the same note fact once it's already been sent.
+    const notesSec = document.createElement('div');
+    notesSec.className = 'profile-section';
+    const notesEyebrow = document.createElement('div');
+    notesEyebrow.className = 'profile-eyebrow';
+    notesEyebrow.textContent = 'Company Notes';
+    const notesArea = document.createElement('textarea');
+    notesArea.className = 'win-notes-textarea';
+    notesArea.placeholder = 'Anything worth referencing in outreach to ANY contact here — e.g. "using Enablon for EHS today", "just had a safety audit", "budget cycle starts in Q1"…';
+    notesArea.value = c.notes || '';
+    notesArea.addEventListener('blur', () => saveCompanyNotes(id, notesArea.value));
+    notesSec.append(notesEyebrow, notesArea);
+    modal.appendChild(notesSec);
+
     // Milestones section
     const milestones = document.createElement('div');
     milestones.className = 'profile-section';
@@ -982,6 +1008,16 @@ body::after {
         }
         card.appendChild(meta);
       }
+
+      // Contact-specific notes — only used to personalize drafts for THIS
+      // person, not shared with other contacts at the company.
+      const contactNotesArea = document.createElement('textarea');
+      contactNotesArea.className = 'call-notes-textarea';
+      contactNotesArea.style.marginTop = '8px';
+      contactNotesArea.placeholder = 'Notes specific to ' + contact.name.split(' ')[0] + ' (personalizes their drafts only)…';
+      contactNotesArea.value = contact.notes || '';
+      contactNotesArea.addEventListener('blur', () => saveContactNotes(id, contact.id, contactNotesArea.value));
+      card.appendChild(contactNotesArea);
 
       // Draft buttons — generate for THIS contact specifically. Each success
       // auto-logs an Email/LinkedIn touchpoint below.
