@@ -242,10 +242,6 @@ body.topbar-modal-open {
     <span class="bottombar-tab-icon">☕</span>
     <span>Caffeine</span>
   </a>
-  <a href="nova-lite.html" class="bottombar-tab" data-page="nova">
-    <span class="bottombar-tab-icon">🧠</span>
-    <span>Nova</span>
-  </a>
   <a href="pt.html" class="bottombar-tab" data-page="pt">
     <span class="bottombar-tab-icon">🏋️</span>
     <span>PT</span>
@@ -278,7 +274,6 @@ body.topbar-modal-open {
     if (p.endsWith('nutrition.html')) return 'nutrition';
     if (p.endsWith('finance.html')) return 'finance';
     if (p.endsWith('caffeine.html')) return 'caffeine';
-    if (p.endsWith('nova-lite.html')) return 'nova';
     if (p.endsWith('pt.html')) return 'pt';
     if (p.endsWith('evotix.html') || p.endsWith('outreach.html')) return 'evotix';
     return 'main'; // index.html, /, or anything else falls back to main
