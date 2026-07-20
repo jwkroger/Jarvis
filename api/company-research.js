@@ -1,20 +1,20 @@
 // ============================================================
 // POST /api/company-research
-// Body: { name: 'Acme Manufacturing', context: '...' }
-// Outreach CRM's company-research helper — uses Claude's server-side
-// web search tool to research a prospect company for a BDR at Evotix.
+// Body: { type: 'company'|'contacts', name: 'Acme Manufacturing', context: '...' }
+// Outreach CRM's research helper — uses Claude's server-side web search
+// tool to research a prospect company for a BDR at Evotix.
 // ANTHROPIC_API_KEY stays server-side only (never sent to the browser).
-// Returns { summary, useCases: [...], recentNews: [{headline, note}], sources: [...] }.
 //
-// Suggested contacts are a SEPARATE call (api/company-contacts.js) run in
-// parallel by the client — cramming both research goals into one model turn
-// (company info + use cases + news + contact-hunting across several sources)
-// was regularly hitting the serverless timeout even at maxDuration: 60.
-// Splitting them keeps each call's search scope small enough to finish fast.
+// Two modes, dispatched by `type` (same pattern as api/outreach-content.js):
+//   'company'  -> { summary, useCases: [...], recentNews: [{headline, note}], sources: [...] }
+//   'contacts' -> { suggestedContacts: [{name, title, note, url}] }
+// These used to be two separate serverless functions, but the Vercel Hobby
+// plan caps a deployment at 12 functions (see the "Consolidate Plaid and
+// WHOOP endpoints" fix for the exact same problem) -- adding a 13th function
+// broke every deploy. One function, two request shapes, called in parallel
+// by the client, keeps the "split the work so neither call times out"
+// benefit without adding a function.
 // ============================================================
-
-// Extend the timeout anyway, as a safety margin — web search can still take
-// a while even for the narrower scope this call has now.
 export const config = {
   maxDuration: 60,
 };
@@ -29,10 +29,31 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { name, context } = req.body || {};
+  const { type, name, context } = req.body || {};
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'company name required' });
 
-  const prompt =
+  const prompt = type === 'contacts' ? buildContactsPrompt(name, context) : buildCompanyPrompt(name, context);
+  const errPrefix = type === 'contacts' ? 'contact research failed: ' : 'company research failed: ';
+
+  try {
+    const result = await callClaudeWithSearch(apiKey, prompt, type === 'contacts' ? 1800 : 2500);
+    const jsonStr = extractLastJson(result.content);
+    let data;
+    try {
+      data = JSON.parse(jsonStr);
+    } catch (e) {
+      throw new Error(result.truncated
+        ? 'the model\'s answer got cut off before finishing — try again'
+        : 'could not parse the research from the model');
+    }
+    return res.status(200).json(data);
+  } catch (e) {
+    return res.status(500).json({ error: errPrefix + (e && e.message ? e.message : String(e)) });
+  }
+}
+
+function buildCompanyPrompt(name, context) {
+  return (
     'You are a B2B sales research assistant helping a BDR (business development rep) at Evotix, an EHS&S ' +
     '(Environmental, Health, Safety & Sustainability) software company. Evotix\'s Assure platform helps mid-market ' +
     'companies (roughly 500-10,000+ employees) in industries like manufacturing, construction, food & drink, ' +
@@ -51,27 +72,28 @@ export default async function handler(req, res) {
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
     '{"summary":"...","useCases":["...","..."],"recentNews":[{"headline":"...","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
-    'sentence before or after it.';
+    'sentence before or after it.'
+  );
+}
 
-  try {
-    const result = await callClaudeWithSearch(apiKey, prompt, 2500);
-    const jsonStr = extractLastJson(result.content);
-    let data;
-    try {
-      data = JSON.parse(jsonStr);
-    } catch (e) {
-      // The most common real cause here is the response getting cut off
-      // mid-JSON — this call now covers company info + use cases + news +
-      // suggested contacts in one answer, so it needs more room. Report that
-      // plainly instead of a bare "could not parse" when it's actually why.
-      throw new Error(result.truncated
-        ? 'the model\'s answer got cut off before finishing (ran out of room) — try again'
-        : 'could not parse research from the model');
-    }
-    return res.status(200).json(data);
-  } catch (e) {
-    return res.status(500).json({ error: 'company research failed: ' + (e && e.message ? e.message : String(e)) });
-  }
+function buildContactsPrompt(name, context) {
+  return (
+    'You are prospecting research for a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) ' +
+    'software company, ahead of outreach to "' + String(name).trim() + '"' +
+    (context && String(context).trim() ? (' (context from the rep: ' + String(context).trim() + ')') : '') + '.\n\n' +
+    'Find 2-5 likely EHS/Safety decision-makers at this company — titles like VP of Safety, Director of EHS, Head of ' +
+    'Health & Safety, EHS Manager, Director of Risk/Compliance. Search the company\'s own site (leadership/about/team ' +
+    'pages), press releases, conference speaker bios, industry articles, and indexed LinkedIn search results for REAL, ' +
+    'CURRENT names in these roles. Do not invent a person\'s name under any circumstances — you cannot log into ' +
+    'LinkedIn or see private profiles, so only report a name if it\'s corroborated by an actual page you found. If you ' +
+    'can\'t confirm a specific name for a relevant title, still include the title with an empty "name" so the rep knows ' +
+    'what role to look for, and use "note" to say where you\'d suggest looking (e.g. "search LinkedIn for \'VP Safety\' ' +
+    'at this company"). For each entry, "note" should say where/how you found it (or why you\'re suggesting the title), ' +
+    'and include a source URL if you have a real one.\n\n' +
+    'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
+    '{"suggestedContacts":[{"name":"... or empty string if unconfirmed","title":"...","note":"...","url":"... or empty string"}]}\n\n' +
+    'Your final message must contain nothing but that JSON object — no narration of your search process.'
+  );
 }
 
 // Claude may narrate its search process in earlier text blocks (or, rarely,
