@@ -1,12 +1,13 @@
 // ============================================================
 // POST /api/outreach-content
-// Body: { type: 'email'|'linkedin', company: {name, summary, useCases, recentNews, notes},
+// Body: { type: 'email'|'linkedin'|'callscript', company: {name, summary, useCases, recentNews, notes},
 //         contact: {name, title, notes}, framework: '...', touchCount: N, priorMessages: [{subject, body}] }
-// Outreach CRM's email / LinkedIn message generator — personalized to a specific
-// contact and aware of how many times they've already been touched, so the
-// message stages appropriately (cold open -> follow-up -> break-up) instead of
+// Outreach CRM's email / LinkedIn / cold-call-script generator — personalized to
+// a specific contact and aware of how many times they've already been touched, so
+// the message stages appropriately (cold open -> follow-up -> break-up) instead of
 // repeating the same pitch. Calls Claude with ANTHROPIC_API_KEY held server-side
-// only (never sent to the browser). Returns { subject, body } (email) or { body } (linkedin).
+// only (never sent to the browser). Returns { subject, body } (email), { body }
+// (linkedin), or { opener, questions: [{category, items}], close } (callscript).
 // ============================================================
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -122,6 +123,37 @@ export default async function handler(req, res) {
     ? ('Follow this framework/structure the rep provided — adapt it to this contact and stage, don\'t just fill in blanks mechanically:\n---\n' + String(framework).trim() + '\n---\n')
     : '';
 
+  // Cold-call opener technique, drawn from Jeremy Miner/NEPQ-style pattern
+  // interrupts and 2026 B2B cold-calling data: openers that state the specific
+  // reason for calling convert ~2.1x better than jumping straight into a pitch,
+  // and a single personalized detail in the first 10 seconds roughly doubles
+  // the odds the prospect keeps talking. "How are you today?" is a scripted-
+  // telemarketer tell that triggers the screening reflex before you get a word
+  // in — the fix is either an honest pattern interrupt ("this is a cold call —
+  // do you want to hang up, or give me 30 seconds?") or leading immediately
+  // with the specific, researched reason for the call, never small talk first.
+  const CALL_OPENER_RULES = [
+    'Structure: Hook (~10-15 sec) -> Bridge (~10-15 sec) -> Reason/value (~15-20 sec) -> Soft ask for permission to continue (~10 sec). Whole opener should be well under 60 seconds spoken aloud, ending in a question that hands the floor back.',
+    'Open with a genuine pattern interrupt, NOT "Hi, how are you today?" or "Do you have a minute?" as the very first line — either name the cold call honestly and disarmingly, or lead straight into the specific, researched reason you\'re calling.',
+    'Weave in ONE specific, real detail about this company or contact in the first 10-15 seconds (a recent news item, an initiative, something from the rep\'s notes, or their industry\'s specific risk exposure) — vague industry-level personalization ("I work with companies like yours") does not land.',
+    'State the specific reason for the call plainly before asking for time — reps who do this convert roughly 2x better than reps who pitch immediately or ask "got a sec?" cold.',
+    'End the opener with a low-pressure, curiosity-based question that earns permission to keep talking rather than a yes/no gate they can easily shut down.',
+    'Write the opener as an ACTUAL word-for-word script the rep can read or memorize verbatim — natural spoken language, contractions, short sentences — not a description of what the opener should do.'
+  ];
+
+  // Post-opener discovery uses NEPQ-style question sequencing (problem
+  // awareness -> consequence -> solution awareness) layered onto the MEDDPICC
+  // qualification pillars most relevant to a cold call: surfacing pain and
+  // finding a champion come first, economic buyer/metrics/competition get
+  // asked once the prospect is engaged, not interrogation-style up front.
+  const MEDDPICC_CATEGORIES = [
+    { category: 'Pain / Problem Awareness', guidance: 'Open-ended NEPQ-style questions ("what/how") that get the prospect to describe their own current pain in this contact\'s specific role/industry, in their own words — not a leading or closed question.' },
+    { category: 'Consequence', guidance: 'Questions that get the prospect to state OUT LOUD what happens if this pain stays unfixed (cost, risk, audit exposure, time, headcount strain) — this is what creates urgency, not the rep stating it for them.' },
+    { category: 'Champion & Decision Process', guidance: 'Curious, non-interrogating questions surfacing who else cares about this, how a change like this would typically get evaluated/approved at their company, and whether this contact would be the one driving it.' },
+    { category: 'Economic Buyer & Metrics', guidance: 'Soft, natural questions about what success/ROI would look like or who\'d ultimately sign off on budget — framed as curiosity about their world, not a budget interrogation this early.' },
+    { category: 'Competition / Current State', guidance: 'Questions about what they use today (paper, spreadsheets, a competing tool) and what\'s working or not — if the rep\'s notes mention a specific tool the company already uses, reference it naturally here instead of asking blind.' }
+  ];
+
   let prompt, maxTokens;
   if (type === 'email') {
     prompt =
@@ -152,6 +184,30 @@ export default async function handler(req, res) {
       'pitch that would read the same regardless of who it\'s addressed to. ' +
       'Return ONLY JSON: {"body":"..."}. No preamble, no markdown fences.';
     maxTokens = 400;
+  } else if (type === 'callscript') {
+    prompt =
+      'Write a cold-call script for a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) ' +
+      'software company, calling the contact below. Use current best-in-class B2B cold-calling technique: Jeremy ' +
+      'Miner/NEPQ-style pattern interrupts for the opener, and MEDDPICC-style qualification (adapted into natural, ' +
+      'curious spoken questions, never interrogation-style) for the discovery bullets that follow.\n\n' +
+      researchBlock + '\n' + sequenceStage() + '\n\n' +
+      'OPENER — write this as an ACTUAL word-for-word script, not a description:\n' +
+      CALL_OPENER_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
+      'DISCOVERY QUESTIONS — bullet points only (not full scripted lines), tailored specifically to this contact\'s ' +
+      'role, industry, and the company research/notes above. For EACH category below, write 2-4 tailored questions:\n' +
+      MEDDPICC_CATEGORIES.map((c) => '- ' + c.category + ': ' + c.guidance).join('\n') + '\n' +
+      'Sequence matters: Pain and Consequence questions come first while rapport is still being built; Champion/' +
+      'Decision Process, Economic Buyer/Metrics, and Competition questions come later once the prospect is engaged, ' +
+      'never all at once. Use language and use-case buzzwords a real EHS/Safety buyer in this contact\'s industry ' +
+      'would recognize, not generic software-speak.\n\n' +
+      'CLOSE — one short, low-pressure line that transitions from discovery into asking for a meeting, referencing ' +
+      'what would have just been uncovered rather than a generic "can we set up a call?"\n\n' +
+      frameworkBlock + notesRepeatRule + priorBlock +
+      'Everything MUST reflect this specific person\'s role, seniority, and industry (see the framing note above) — ' +
+      'not a generic script that would read the same for any prospect. ' +
+      'Return ONLY JSON: {"opener":"...","questions":[{"category":"...","items":["...","..."]}],"close":"..."}. ' +
+      'No preamble, no markdown fences.';
+    maxTokens = 1200;
   } else {
     return res.status(400).json({ error: 'unknown type' });
   }

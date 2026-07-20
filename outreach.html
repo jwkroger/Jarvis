@@ -549,7 +549,7 @@ body::after {
     if (!title.trim()) { alert('Job title is required — it\'s what personalizes emails and LinkedIn messages to this contact.'); return; }
     updateCompany(id, (c) => {
       c.contacts = c.contacts || [];
-      c.contacts.push({ id: newId(), name: name.trim(), title: title.trim(), email: email.trim(), linkedin: linkedin.trim(), notes: '', touchpoints: [] });
+      c.contacts.push({ id: newId(), name: name.trim(), title: title.trim(), email: email.trim(), linkedin: linkedin.trim(), notes: '', touchpoints: [], callScripts: [] });
     });
   }
   function deleteContact(id, contactId) {
@@ -650,6 +650,53 @@ body::after {
       btnEl.disabled = false;
       btnEl.textContent = origLabel;
     }
+  }
+
+  // Call scripts are prep material, not a sent touch — the actual call still
+  // gets logged separately via the "Log Call" panel, so generation here does
+  // not push a touchpoint (unlike drafting an email/LinkedIn message).
+  async function generateContactCallScript(id, contactId, btnEl) {
+    const items = load();
+    const c = items[findById(items, id)];
+    const contact = c && (c.contacts || []).find((ct) => ct.id === contactId);
+    if (!contact) return;
+    const origLabel = btnEl.textContent;
+    btnEl.disabled = true;
+    btnEl.textContent = 'Writing…';
+    try {
+      const data = await callApi('/api/outreach-content', {
+        type: 'callscript',
+        company: { name: c.name, summary: c.research && c.research.summary, useCases: c.research && c.research.useCases, recentNews: c.research && c.research.recentNews, notes: c.notes },
+        contact: { name: contact.name, title: contact.title, notes: contact.notes },
+        touchCount: (contact.touchpoints || []).length,
+        priorMessages: (contact.callScripts || []).slice(-4).map((cs) => ({ body: 'Opener: ' + (cs.opener || '') + (cs.close ? (' | Close: ' + cs.close) : '') }))
+      });
+      updateCompany(id, (co) => {
+        const ct = (co.contacts || []).find((x) => x.id === contactId);
+        if (!ct) return;
+        ct.callScripts = ct.callScripts || [];
+        ct.callScripts.push({
+          opener: data.opener || '',
+          questions: Array.isArray(data.questions) ? data.questions : [],
+          close: data.close || '',
+          generatedAt: Date.now()
+        });
+      });
+    } catch (e) {
+      alert('Couldn\'t generate call script: ' + (e && e.message ? e.message : 'try again.'));
+    } finally {
+      btnEl.disabled = false;
+      btnEl.textContent = origLabel;
+    }
+  }
+
+  function formatCallScript(cs) {
+    const parts = ['OPENER:\n' + (cs.opener || '')];
+    (cs.questions || []).forEach((group) => {
+      parts.push(group.category + ':\n' + (group.items || []).map((q) => '- ' + q).join('\n'));
+    });
+    parts.push('MEETING CLOSE:\n' + (cs.close || ''));
+    return parts.join('\n\n');
   }
 
   function copyText(text, btnEl) {
@@ -1034,7 +1081,12 @@ body::after {
       draftLiBtn.type = 'button';
       draftLiBtn.textContent = '💬 Draft LinkedIn';
       draftLiBtn.addEventListener('click', () => generateContactLinkedin(id, contact.id, draftLiBtn));
-      draftRow.append(draftEmailBtn, draftLiBtn);
+      const draftCallBtn = document.createElement('button');
+      draftCallBtn.className = 'mini-btn';
+      draftCallBtn.type = 'button';
+      draftCallBtn.textContent = '📞 Draft Call Script';
+      draftCallBtn.addEventListener('click', () => generateContactCallScript(id, contact.id, draftCallBtn));
+      draftRow.append(draftEmailBtn, draftLiBtn, draftCallBtn);
       card.appendChild(draftRow);
 
       const genWrap = document.createElement('div');
@@ -1106,6 +1158,61 @@ body::after {
         }
         if (linkedinMsgs.length > 1) {
           genWrap.appendChild(buildHistoryToggle(linkedinMsgs.slice(0, -1).reverse(), (m) => m.body));
+        }
+      }
+      const callScripts = contact.callScripts || [];
+      if (callScripts.length) {
+        const latest = callScripts[callScripts.length - 1];
+        const csKey = contact.id + ':callscript:' + latest.generatedAt;
+        if (!dismissedDrafts.has(csKey)) {
+          const box = document.createElement('div');
+          box.className = 'generated-box';
+          const openerLabel = document.createElement('div');
+          openerLabel.className = 'generated-subject';
+          openerLabel.textContent = 'Opener';
+          const openerBody = document.createElement('div');
+          openerBody.className = 'generated-body';
+          openerBody.textContent = latest.opener;
+          box.append(openerLabel, openerBody);
+          (latest.questions || []).forEach((group) => {
+            const catLabel = document.createElement('div');
+            catLabel.className = 'generated-subject';
+            catLabel.style.marginTop = '10px';
+            catLabel.textContent = group.category;
+            const catBody = document.createElement('div');
+            catBody.className = 'generated-body';
+            catBody.textContent = (group.items || []).map((q) => '• ' + q).join('\n');
+            box.append(catLabel, catBody);
+          });
+          const closeLabel = document.createElement('div');
+          closeLabel.className = 'generated-subject';
+          closeLabel.style.marginTop = '10px';
+          closeLabel.textContent = 'Meeting Close';
+          const closeBody = document.createElement('div');
+          closeBody.className = 'generated-body';
+          closeBody.textContent = latest.close;
+          box.append(closeLabel, closeBody);
+          const foot = document.createElement('div');
+          foot.className = 'generated-foot';
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'mini-btn';
+          copyBtn.type = 'button';
+          copyBtn.textContent = '📋 Copy Script';
+          copyBtn.addEventListener('click', () => copyText(formatCallScript(latest), copyBtn));
+          const dismissBtn = document.createElement('button');
+          dismissBtn.className = 'mini-btn';
+          dismissBtn.type = 'button';
+          dismissBtn.textContent = '✕ Close';
+          dismissBtn.addEventListener('click', () => {
+            dismissedDrafts.add(csKey);
+            renderModal(id);
+          });
+          foot.append(copyBtn, dismissBtn);
+          box.appendChild(foot);
+          genWrap.appendChild(box);
+        }
+        if (callScripts.length > 1) {
+          genWrap.appendChild(buildHistoryToggle(callScripts.slice(0, -1).reverse(), formatCallScript));
         }
       }
       card.appendChild(genWrap);
