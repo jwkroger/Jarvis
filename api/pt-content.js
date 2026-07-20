@@ -77,15 +77,18 @@ export default async function handler(req, res) {
       const { pillars, existing } = req.body || {};
       const pillarList = Array.isArray(pillars) && pillars.length
         ? pillars
-        : ['Transformation', 'BFT Highlight', 'Online Coaching', 'Education / Tips', 'Behind the Scenes', 'Personal Brand'];
+        : ['Transformation', '1-on-1 Session', 'Online Coaching', 'Education / Tips', 'Behind the Scenes', 'Personal Brand'];
       const prompt =
         'You are a social media strategist helping a personal trainer grow an Instagram presence. They want to post ' +
-        'every day to kickstart growth. They currently run in-person group training at BFT and are starting to build ' +
-        'an online coaching offer, so every idea should ultimately funnel viewers toward that online program — either ' +
-        'directly (a coaching-pitch idea) or by building the trust that earns the DM (education, results, group-' +
-        'training energy). ' +
-        'Aim for a content mix close to 60% educational/tips, 30% social proof (client wins, group energy, behind the ' +
-        'scenes), 10% direct promotional, spread across these pillars: ' + pillarList.join(', ') + '.\n\n' +
+        'every day to kickstart growth. They train clients in-person ONE-ON-ONE (not group classes or bootcamps — ' +
+        'group training is essentially not part of their business, so do not reference group sessions, group energy, ' +
+        'bootcamp, or class-style training unless explicitly asked) and are building an online coaching offer, so ' +
+        'every idea should ultimately funnel viewers toward that online program — either directly (a coaching-pitch ' +
+        'idea) or by building the trust that earns the DM (education, individual client results, 1-on-1 session ' +
+        'content). Every idea should speak directly to someone who wants individualized attention and a program built ' +
+        'around them, not a group/class experience. ' +
+        'Aim for a content mix close to 60% educational/tips, 30% social proof (individual client wins, 1-on-1 session ' +
+        'moments, behind the scenes), 10% direct promotional, spread across these pillars: ' + pillarList.join(', ') + '.\n\n' +
         'Every idea must open with a hook built from ONE of these proven high-converting formulas — pick whichever fits ' +
         'the idea best, and don\'t reuse the same formula for all 5:\n' + HOOK_LIST_TEXT + '\n\n' +
         'Every idea must also be assigned a posting format, based on this cadence research (posting daily means most ' +
