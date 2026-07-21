@@ -46,11 +46,11 @@ const CONFIG = {
   // ids from `days` above, plus "rest" for off-days. The pill at the top
   // of the app reads this + splitAnchor to compute "what day is today".
   // This is a 14-day (2-week) cycle so it locks to a fixed weekly
-  // schedule: Sun Push, Mon Pull, Tue Legs, Wed Arms/Boxing (alternates
+  // schedule: Sun Pull, Mon Push, Tue Legs, Wed Arms/Boxing (alternates
   // week to week), Thu Rest, Fri Upper Body, Sat Cardio.
   splitRotation: [
-    "push", "pull", "legs", "arms",   "rest", "upper", "cardio",
-    "push", "pull", "legs", "boxing", "rest", "upper", "cardio"
+    "pull", "push", "legs", "arms",   "rest", "upper", "cardio",
+    "pull", "push", "legs", "boxing", "rest", "upper", "cardio"
   ],
 
   // Anchor: pair a real calendar date with which split day fell on it.
@@ -67,7 +67,7 @@ const CONFIG = {
   // it forces the new schedule onto browsers that already have an older
   // split saved (your in-app rotation edits still stick until you bump
   // this again).
-  splitVersion: 2,
+  splitVersion: 3,
 
   // Progression rule: hit this many reps on the top set → coach tells you
   // to add weight next session. Lower this to be more aggressive (e.g. 6),
@@ -313,24 +313,7 @@ img, video, canvas, svg { max-width: 100%; }
 }
 
 /* ----- Exercise picker ----- */
-.po-exercise-bar { display: flex; gap: 8px; align-items: center; }
-.po-ex-select {
-  flex: 1 1 0; min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,0.28);
-  color: var(--text-1); border-radius: 12px;
-  font-family: inherit; font-size: 14px; font-weight: 500;
-  appearance: none; -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%2387847B' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
-  background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
-  text-overflow: ellipsis; overflow: hidden;
-}
-.po-ex-select:focus {
-  outline: none; border-color: rgba(255,255,255,0.40);
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.06);
-}
-.po-ex-select:disabled { opacity: 0.5; }
+.po-exercise-bar { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-bottom: 10px; }
 .po-btn-icon {
   width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
@@ -350,6 +333,33 @@ img, video, canvas, svg { max-width: 100%; }
   border-radius: 12px; padding: 16px; text-align: center;
   font-size: 13px; color: var(--text-3); margin-top: 10px;
 }
+
+/* ----- Stacked exercise list — tap a row to drop it open and see its
+   log form + full history right there. Only one open at a time. ----- */
+.po-ex-list { display: flex; flex-direction: column; gap: 8px; }
+.po-ex-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  overflow: hidden;
+  transition: background 0.15s, border-color 0.15s;
+}
+.po-ex-row[aria-expanded="true"] { border-color: rgba(255,255,255,0.20); background: rgba(255,255,255,0.045); }
+.po-ex-row-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.po-ex-row-name {
+  font-size: 14.5px; font-weight: 600; color: var(--text-1);
+  flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.po-ex-row-meta {
+  font-size: 11.5px; color: var(--text-3); font-family: var(--font-mono); flex-shrink: 0;
+}
+.po-ex-row-arrow { font-size: 13px; color: var(--text-3); transition: transform 0.2s; flex-shrink: 0; }
+.po-ex-row[aria-expanded="true"] .po-ex-row-arrow { transform: rotate(180deg); }
+.po-ex-row-slot:not(:empty) { padding: 0 14px 14px; }
 
 /* ----- Bodyweight banner ----- */
 .po-bw-banner {
@@ -428,27 +438,6 @@ img, video, canvas, svg { max-width: 100%; }
 }
 .po-w-btn:hover { background: rgba(255,255,255,0.10); }
 .po-w-btn:active { transform: scale(0.94); }
-.po-reps-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
-  gap: 6px;
-  width: 100%;
-}
-.po-reps-pill {
-  padding: 12px 0; border: 1px solid var(--border);
-  background: rgba(0,0,0,0.28); color: var(--text-2);
-  border-radius: 8px; cursor: pointer;
-  font-family: inherit; font-size: 13px; font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.po-reps-pill:hover { background: rgba(255,255,255,0.06); color: var(--text-1); }
-.po-reps-pill.active {
-  background: linear-gradient(180deg, #ffffff 0%, #e8e5dd 100%);
-  color: #0a0a0b; border-color: transparent;
-  font-weight: 800;
-}
 
 /* ----- Primary button ----- */
 .po-btn-primary {
@@ -719,13 +708,10 @@ img, video, canvas, svg { max-width: 100%; }
 
   /* Exercise picker */
   .po-exercise-bar { gap: 6px; }
-  .po-ex-select { padding: 11px 10px; padding-right: 30px; font-size: 13px; }
   .po-btn-icon { width: 38px; height: 38px; min-width: 38px; }
 
-  /* Stack weight + reps vertically so every rep button fits the screen */
+  /* Stack weight + reps vertically on narrow screens */
   .po-log-grid { grid-template-columns: 1fr; gap: 14px; }
-  .po-reps-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-  .po-reps-pill { padding: 14px 0; font-size: 14px; min-width: 0; }
   .po-w-btn { min-width: 44px; padding: 0 10px; font-size: 18px; }
 
   /* Stats — 3 narrow boxes can squeeze on a 360px iPhone; let them shrink */
@@ -758,7 +744,6 @@ img, video, canvas, svg { max-width: 100%; }
 @media (max-width: 360px) {
   .po-shell { padding-left: 8px; padding-right: 8px; }
   .po-title { font-size: 17px; }
-  .po-reps-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* Today's Workout + Past Workouts */
@@ -1521,11 +1506,11 @@ img, video, canvas, svg { max-width: 100%; }
       </div>
     </div>
 
-    <!-- Exercise -->
+    <!-- Exercises — stacked, tap one to drop it open and log a set / see
+         its full history right there. Only one open at a time. -->
     <div class="po-sub-section">
-      <div class="po-sub-title">Exercise</div>
+      <div class="po-sub-title">Exercises</div>
       <div class="po-exercise-bar">
-        <select class="po-ex-select" id="exSelect"></select>
         <button class="po-btn-icon" id="addExBtn" title="Add exercise" aria-label="Add">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
@@ -1534,100 +1519,104 @@ img, video, canvas, svg { max-width: 100%; }
         </button>
       </div>
       <div class="po-no-ex" id="noExMsg" style="display:none">No exercises here yet. Tap <strong>+</strong> to add one.</div>
+      <div class="po-ex-list" id="exerciseList"></div>
     </div>
 
-    <!-- Log a set -->
-    <div class="po-sub-section">
-      <div class="po-sub-title">Log today's top set</div>
-      <div class="po-bw-banner" id="bwBanner">Bodyweight — log reps only</div>
-      <div class="po-bw-banner" id="tbBanner">Time-based — duration only<span id="tbWhoopNote"></span></div>
-      <div class="po-last-set" id="lastSet">
-        <span class="po-last-label">Last time</span>
-        <span class="po-last-value" id="lastSetValue"></span>
-        <span class="po-last-meta" id="lastSetMeta"></span>
-      </div>
-      <div class="po-log-grid" id="logGrid">
-        <div class="po-field" id="weightField">
-          <label id="weightLabel">Weight (kg)</label>
-          <div class="po-weight-row">
-            <button class="po-w-btn" id="weightDownBtn" type="button">−</button>
-            <input type="number" id="weightInput" step="0.5" inputmode="decimal" placeholder="0">
-            <button class="po-w-btn" id="weightUpBtn" type="button">+</button>
+    <!-- Shared detail panel — relocated by JS into whichever exercise row
+         is currently expanded (see mountDetailPanel). Parked in exDetailHome
+         when nothing is expanded. -->
+    <div id="exDetailHome" style="display:none">
+    <div id="exDetailPanel">
+
+      <!-- Log a set -->
+      <div class="po-sub-section">
+        <div class="po-sub-title">Log today's top set</div>
+        <div class="po-bw-banner" id="bwBanner">Bodyweight — log reps only</div>
+        <div class="po-bw-banner" id="tbBanner">Time-based — duration only<span id="tbWhoopNote"></span></div>
+        <div class="po-last-set" id="lastSet">
+          <span class="po-last-label">Last time</span>
+          <span class="po-last-value" id="lastSetValue"></span>
+          <span class="po-last-meta" id="lastSetMeta"></span>
+        </div>
+        <div class="po-log-grid" id="logGrid">
+          <div class="po-field" id="weightField">
+            <label id="weightLabel">Weight (kg)</label>
+            <div class="po-weight-row">
+              <button class="po-w-btn" id="weightDownBtn" type="button">−</button>
+              <input type="number" id="weightInput" step="0.5" inputmode="decimal" placeholder="0">
+              <button class="po-w-btn" id="weightUpBtn" type="button">+</button>
+            </div>
+          </div>
+          <div class="po-field" id="repsField">
+            <label>Reps</label>
+            <div class="po-weight-row">
+              <button class="po-w-btn" id="repsDownBtn" type="button">−</button>
+              <input type="number" id="repsInput" step="1" min="0" inputmode="numeric" placeholder="8">
+              <button class="po-w-btn" id="repsUpBtn" type="button">+</button>
+            </div>
+          </div>
+          <div class="po-field" id="minutesField" style="display:none">
+            <label>Duration (min)</label>
+            <div class="po-weight-row">
+              <button class="po-w-btn" id="minutesDownBtn" type="button">−</button>
+              <input type="number" id="minutesInput" step="1" min="0" inputmode="numeric" placeholder="0">
+              <button class="po-w-btn" id="minutesUpBtn" type="button">+</button>
+            </div>
           </div>
         </div>
-        <div class="po-field" id="repsField">
-          <label>Reps</label>
-          <div class="po-reps-row" id="repsRow" data-value="8">
-            <button type="button" class="po-reps-pill" data-v="4">4</button>
-            <button type="button" class="po-reps-pill" data-v="5">5</button>
-            <button type="button" class="po-reps-pill" data-v="6">6</button>
-            <button type="button" class="po-reps-pill" data-v="7">7</button>
-            <button type="button" class="po-reps-pill active" data-v="8">8</button>
-            <button type="button" class="po-reps-pill" data-v="9">9</button>
-            <button type="button" class="po-reps-pill" data-v="10">10</button>
-            <button type="button" class="po-reps-pill" data-v="11">11</button>
-            <button type="button" class="po-reps-pill" data-v="12">12</button>
+        <button class="po-btn-primary" id="logBtn">Log set</button>
+      </div>
+
+      <!-- Prescription -->
+      <div class="po-sub-section">
+        <div class="po-sub-title">Next session</div>
+        <div id="rxWrap"></div>
+      </div>
+
+      <!-- Stats -->
+      <div class="po-sub-section">
+        <div class="po-sub-title">Stats</div>
+        <div class="po-stats-row">
+          <div class="po-stat-box">
+            <div class="po-stat-label" id="oneRmLabel">Est. 1RM</div>
+            <div class="po-stat-val" id="oneRm">—<span class="po-unit" id="oneRmUnit">kg</span></div>
+          </div>
+          <div class="po-stat-box">
+            <div class="po-stat-label">Best set</div>
+            <div class="po-stat-val" id="bestSet">—</div>
+          </div>
+          <div class="po-stat-box">
+            <div class="po-stat-label">Sessions</div>
+            <div class="po-stat-val" id="sessionCount">—</div>
           </div>
         </div>
-        <div class="po-field" id="minutesField" style="display:none">
-          <label>Duration (min)</label>
-          <div class="po-weight-row">
-            <button class="po-w-btn" id="minutesDownBtn" type="button">−</button>
-            <input type="number" id="minutesInput" step="1" min="0" inputmode="numeric" placeholder="0">
-            <button class="po-w-btn" id="minutesUpBtn" type="button">+</button>
-          </div>
+      </div>
+
+      <!-- Trend -->
+      <div class="po-sub-section">
+        <div class="po-sub-title">Trend (last 10 sessions)</div>
+        <div class="po-spark-wrap">
+          <svg class="po-spark-svg" id="sparkline" viewBox="0 0 300 60" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="po-spark-empty" id="sparkEmpty">Need 2+ sessions for trend</div>
         </div>
       </div>
-      <button class="po-btn-primary" id="logBtn">Log set</button>
-    </div>
 
-    <!-- Prescription -->
-    <div class="po-sub-section">
-      <div class="po-sub-title">Next session</div>
-      <div id="rxWrap"></div>
-    </div>
-
-    <!-- Stats -->
-    <div class="po-sub-section">
-      <div class="po-sub-title">Stats</div>
-      <div class="po-stats-row">
-        <div class="po-stat-box">
-          <div class="po-stat-label" id="oneRmLabel">Est. 1RM</div>
-          <div class="po-stat-val" id="oneRm">—<span class="po-unit" id="oneRmUnit">kg</span></div>
-        </div>
-        <div class="po-stat-box">
-          <div class="po-stat-label">Best set</div>
-          <div class="po-stat-val" id="bestSet">—</div>
-        </div>
-        <div class="po-stat-box">
-          <div class="po-stat-label">Sessions</div>
-          <div class="po-stat-val" id="sessionCount">—</div>
+      <!-- History -->
+      <div class="po-sub-section">
+        <div class="po-sub-title">History</div>
+        <div id="historyCard">
+          <div class="po-empty">No logs yet.</div>
         </div>
       </div>
-    </div>
 
-    <!-- Trend -->
-    <div class="po-sub-section">
-      <div class="po-sub-title">Trend (last 10 sessions)</div>
-      <div class="po-spark-wrap">
-        <svg class="po-spark-svg" id="sparkline" viewBox="0 0 300 60" preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="sparkGrad" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="rgba(255,255,255,0.18)"/>
-              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-            </linearGradient>
-          </defs>
-        </svg>
-        <div class="po-spark-empty" id="sparkEmpty">Need 2+ sessions for trend</div>
-      </div>
     </div>
-
-    <!-- History -->
-    <div class="po-sub-section">
-      <div class="po-sub-title">History</div>
-      <div id="historyCard">
-        <div class="po-empty">No logs yet.</div>
-      </div>
     </div>
 
     <!-- Today's Workout — every set logged today, grouped by exercise.
@@ -1919,38 +1908,65 @@ img, video, canvas, svg { max-width: 100%; }
       '<button class="po-seg-btn ' + (d.id === state.filterDay ? 'active' : '') + '" data-day="' + d.id + '">' + escape(d.name) + '</button>'
     ).join('');
     $('gymSeg').querySelectorAll('.po-seg-btn').forEach(b => {
-      b.addEventListener('click', () => { state.filterGym = b.dataset.gym; state.currentEx = null; saveState(); renderAll(); });
+      b.addEventListener('click', () => { state.filterGym = b.dataset.gym; state.currentEx = null; expandedExId = null; saveState(); renderAll(); });
     });
     $('daySeg').querySelectorAll('.po-seg-btn').forEach(b => {
       b.addEventListener('click', () => {
         state.filterDay = b.dataset.day;
-        state.currentEx = null;
+        state.currentEx = null; expandedExId = null;
         // User has now manually picked a day — stop auto-overriding to today's split.
         state._userPickedDay = true;
         saveState(); renderAll();
       });
     });
   }
-  function renderSelect() {
-    const sel = $('exSelect');
+  // UI-only: which exercise row is currently dropped open (not persisted —
+  // starts collapsed on every fresh page load). `state.currentEx` still
+  // tracks which exercise the shared detail panel's data reflects.
+  let expandedExId = null;
+
+  function renderExerciseList() {
+    const list = $('exerciseList');
     const f = getFiltered();
     const noMsg = $('noExMsg');
     const editBtn = $('editExBtn');
     const logBtn = $('logBtn');
     if (!f.length) {
-      sel.innerHTML = '<option>—</option>';
-      sel.disabled = true; editBtn.disabled = true; logBtn.disabled = true;
-      noMsg.style.display = 'block'; state.currentEx = null;
+      list.innerHTML = '';
+      editBtn.disabled = true; logBtn.disabled = true;
+      noMsg.style.display = 'block';
+      state.currentEx = null; expandedExId = null;
       return;
     }
-    sel.disabled = false; editBtn.disabled = false; logBtn.disabled = false;
+    editBtn.disabled = false; logBtn.disabled = false;
     noMsg.style.display = 'none';
-    if (!f.find(e => e.id === state.currentEx)) state.currentEx = f[0].id;
-    sel.innerHTML = f.map(e => {
-      const wLbl = e.timeBased ? ' · time' : e.bw ? ' · BW' : (e.startWeight ? ' · ' + e.startWeight + unit() : '');
+    if (!f.find(e => e.id === expandedExId)) expandedExId = null;
+    list.innerHTML = f.map(e => {
+      const meta = e.timeBased ? 'time' : e.bw ? 'BW' : (e.startWeight ? e.startWeight + unit() : '');
       const sh = e.gym === 'both' ? ' ★' : '';
-      return '<option value="' + e.id + '"' + (e.id === state.currentEx ? ' selected' : '') + '>' + escape(e.name) + wLbl + sh + '</option>';
+      return '<div class="po-ex-row" data-id="' + e.id + '" aria-expanded="' + (e.id === expandedExId ? 'true' : 'false') + '">'
+        + '<div class="po-ex-row-head">'
+        + '<span class="po-ex-row-name">' + escape(e.name) + sh + '</span>'
+        + (meta ? '<span class="po-ex-row-meta">' + meta + '</span>' : '')
+        + '<span class="po-ex-row-arrow">▾</span>'
+        + '</div>'
+        + '<div class="po-ex-row-slot"></div>'
+        + '</div>';
     }).join('');
+  }
+
+  // The shared log/stats/history panel lives in exactly one place at a
+  // time — moved (not cloned) into whichever row is expanded, or parked
+  // off-screen in exDetailHome when nothing is. Every element inside it
+  // keeps its id, so renderForm/renderRx/renderStats/etc. work unchanged
+  // regardless of where it's currently mounted.
+  function mountDetailPanel() {
+    const panel = $('exDetailPanel');
+    const home = $('exDetailHome');
+    if (!expandedExId) { home.appendChild(panel); return; }
+    const row = $('exerciseList').querySelector('.po-ex-row[data-id="' + expandedExId + '"]');
+    if (!row) { home.appendChild(panel); expandedExId = null; return; }
+    row.querySelector('.po-ex-row-slot').appendChild(panel);
   }
   function renderForm() {
     const ex = getCurrentEx();
@@ -2160,44 +2176,9 @@ img, video, canvas, svg { max-width: 100%; }
     splitEl.classList.toggle('is-rest', isRestName(split.name));
   }
 
-  // Build the rep buttons based on the current exercise's repMin/repMax.
-  // Always spans repMin → repMax + 2 (a small buffer for over-performing
-  // sets that trigger the upgrade signal), capped at 16 buttons total so
-  // wide ranges don't break the mobile layout.
-  function renderRepsRow() {
-    const row = document.getElementById('repsRow');
-    if (!row) return;
-    const ex = getCurrentEx();
-    if (ex && ex.timeBased) { row.innerHTML = ''; return; }
-    let repMin, repMax;
-    if (ex) {
-      repMin = Math.max(1, parseInt(ex.repMin, 10) || 1);
-      repMax = Math.max(repMin, parseInt(ex.repMax, 10) || repMin);
-    } else {
-      repMin = 4; repMax = 12;
-    }
-    const upper = Math.max(repMax + 2, repMin + 5);
-    const end = Math.min(upper, repMin + 15);
-
-    // Preserve the previously-selected rep if it still fits in the new
-    // range; otherwise default to the target (repMax).
-    const prev = parseInt(row.dataset.value, 10);
-    const active = (prev >= repMin && prev <= end) ? prev : repMax;
-
-    let html = '';
-    for (let i = repMin; i <= end; i++) {
-      html += '<button type="button" class="po-reps-pill' +
-        (i === active ? ' active' : '') +
-        '" data-v="' + i + '">' + i + '</button>';
-    }
-    row.innerHTML = html;
-    row.dataset.value = String(active);
-  }
-
   function renderAll() {
     renderDayPill();
-    renderFilters(); renderSelect(); renderForm(); renderLastSet();
-    renderRepsRow();
+    renderFilters(); renderExerciseList(); mountDetailPanel(); renderForm(); renderLastSet();
     renderRx(); renderStats(); renderSparkline(); renderHistory();
     renderTodaysWorkout();
     renderPastWorkouts();
@@ -2207,10 +2188,17 @@ img, video, canvas, svg { max-width: 100%; }
       // requires tapping Log to actually save it).
       prefillMinutesFromWhoop(ex);
     } else if (ex && !ex.bw) {
-      // Pre-fill weight input with last logged weight (or starting weight)
+      // Pre-fill weight + reps with the last logged set (or starting weight /
+      // target reps for a brand new exercise) — free-typed, not preset pills,
+      // so any rep count or weight can be logged, not just a narrow range.
       const logs = getLogs();
-      const w = logs.length ? logs[logs.length - 1].weight : (ex.startWeight || 0);
-      $('weightInput').value = w;
+      const last = logs.length ? logs[logs.length - 1] : null;
+      $('weightInput').value = last ? last.weight : (ex.startWeight || 0);
+      $('repsInput').value = last ? last.reps : (ex.repMax || 8);
+    } else if (ex && ex.bw) {
+      const logs = getLogs();
+      const last = logs.length ? logs[logs.length - 1] : null;
+      $('repsInput').value = last ? last.reps : (ex.repMax || 8);
     }
   }
 
@@ -2583,8 +2571,24 @@ img, video, canvas, svg { max-width: 100%; }
     if (match) state.filterDay = match.id;
   })();
 
-  $('exSelect').addEventListener('change', e => {
-    state.currentEx = e.target.value; saveState(); renderAll();
+  // Delegated click handler — rows are fully regenerated on every
+  // renderExerciseList(), so we listen on the static container rather than
+  // individual rows. Tapping a row's header makes it the current exercise
+  // and drops it open; tapping the already-open one collapses it.
+  $('exerciseList').addEventListener('click', (e) => {
+    const head = e.target.closest('.po-ex-row-head');
+    if (!head) return;
+    const row = head.closest('.po-ex-row');
+    const id = row && row.dataset.id;
+    if (!id) return;
+    if (expandedExId === id) {
+      expandedExId = null;
+    } else {
+      expandedExId = id;
+      state.currentEx = id;
+      saveState();
+    }
+    renderAll();
   });
   $('weightDownBtn').addEventListener('click', () => {
     const ex = getCurrentEx(); if (!ex || ex.bw || ex.timeBased) return;
@@ -2596,6 +2600,16 @@ img, video, canvas, svg { max-width: 100%; }
     const w = parseFloat($('weightInput').value) || 0;
     $('weightInput').value = w + (ex.step || 2.5);
   });
+  $('repsDownBtn').addEventListener('click', () => {
+    const ex = getCurrentEx(); if (!ex || ex.timeBased) return;
+    const r = parseInt($('repsInput').value, 10) || 0;
+    $('repsInput').value = Math.max(0, r - 1);
+  });
+  $('repsUpBtn').addEventListener('click', () => {
+    const ex = getCurrentEx(); if (!ex || ex.timeBased) return;
+    const r = parseInt($('repsInput').value, 10) || 0;
+    $('repsInput').value = r + 1;
+  });
   $('minutesDownBtn').addEventListener('click', () => {
     const ex = getCurrentEx(); if (!ex || !ex.timeBased) return;
     const m = parseInt($('minutesInput').value, 10) || 0;
@@ -2605,16 +2619,6 @@ img, video, canvas, svg { max-width: 100%; }
     const ex = getCurrentEx(); if (!ex || !ex.timeBased) return;
     const m = parseInt($('minutesInput').value, 10) || 0;
     $('minutesInput').value = m + 5;
-  });
-  // Delegated click handler — reps row is regenerated per exercise via
-  // renderRepsRow(), so we listen on the container rather than the
-  // individual buttons.
-  $('repsRow').addEventListener('click', (e) => {
-    const p = e.target.closest('.po-reps-pill');
-    if (!p) return;
-    $('repsRow').querySelectorAll('.po-reps-pill').forEach(x => x.classList.remove('active'));
-    p.classList.add('active');
-    $('repsRow').dataset.value = p.dataset.v;
   });
   $('logBtn').addEventListener('click', () => {
     const ex = getCurrentEx();
@@ -2635,8 +2639,8 @@ img, video, canvas, svg { max-width: 100%; }
       setTimeout(() => { btn.style.transform = ''; }, 160);
       return;
     }
-    const reps = parseInt($('repsRow').dataset.value, 10) || 0;
-    if (reps <= 0) { alert('Pick a rep count.'); return; }
+    const reps = parseInt($('repsInput').value, 10) || 0;
+    if (reps <= 0) { alert('Enter a rep count.'); return; }
     const w = ex.bw ? 0 : (parseFloat($('weightInput').value) || 0);
     if (!ex.bw && w <= 0) { alert('Enter a weight.'); return; }
     const arr = state.logs[ex.id] || [];
@@ -2745,6 +2749,7 @@ img, video, canvas, svg { max-width: 100%; }
       const ex = Object.assign({ id: uid() }, data);
       state.exercises.push(ex);
       state.currentEx = ex.id;
+      expandedExId = ex.id;
       state.filterGym = (modalGym === 'both') ? state.filterGym : modalGym;
       state.filterDay = modalDay;
     }
@@ -2758,6 +2763,7 @@ img, video, canvas, svg { max-width: 100%; }
     state.exercises = state.exercises.filter(e => e.id !== editingExId);
     delete state.logs[editingExId];
     if (state.currentEx === editingExId) state.currentEx = null;
+    if (expandedExId === editingExId) expandedExId = null;
     editingExId = null;
     saveState();
     $('exModalBg').classList.remove('show');
