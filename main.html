@@ -878,19 +878,20 @@ body::after {
   // ---------- date helpers ----------
   function pad2(n) { return String(n).padStart(2, '0'); }
   function dateToKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-  function getActiveDateString() {
-    const now = new Date();
-    if (now.getHours() < 6) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 1);
-      return dateToKey(d);
-    }
-    return dateToKey(now);
+  // The dashboard's "day" rolls over at midnight US Eastern time (not the
+  // browser's local time), so every device resets together. Returns a
+  // local Date object for that Eastern calendar day (only Y/M/D matters —
+  // time-of-day is never read from this).
+  function easternNow() {
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return new Date(parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10));
   }
+  function getActiveDateString() { return dateToKey(easternNow()); }
   function getTomorrowDateString() {
-    const now = new Date();
-    const d = new Date(now);
-    if (now.getHours() >= 6) d.setDate(d.getDate() + 1);
+    const d = easternNow();
+    d.setDate(d.getDate() + 1);
     return dateToKey(d);
   }
   function formatDate(yyyy_mm_dd) {
@@ -1517,11 +1518,7 @@ body::after {
   ];
   const LG_TEMPLATES = { daily: LG_DAILY_TEMPLATE, weekly: LG_WEEKLY_TEMPLATE, monthly: LG_MONTHLY_TEMPLATE };
 
-  function lgGetActiveDateObj() {
-    const now = new Date();
-    if (now.getHours() < 6) { const d = new Date(now); d.setDate(d.getDate() - 1); return d; }
-    return now;
-  }
+  function lgGetActiveDateObj() { return easternNow(); }
   function lgWeekStartKey(d) {
     const day = d.getDay();
     const diff = (day === 0 ? -6 : 1 - day);

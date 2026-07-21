@@ -504,11 +504,13 @@ main {
   </a>
   <script>
   (function () {
-    function pad2(n) { return String(n).padStart(2, '0'); }
+    // The dashboard's "day" rolls over at midnight US Eastern time (not the
+    // browser's local time), so every device resets together.
     function activeDateKey() {
-      const now = new Date();
-      if (now.getHours() < 6) now.setDate(now.getDate() - 1);
-      return now.getFullYear() + '-' + pad2(now.getMonth() + 1) + '-' + pad2(now.getDate());
+      const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+      const parts = {};
+      fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+      return parts.year + '-' + parts.month + '-' + parts.day;
     }
     function loadJSON(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
     function render() {
@@ -963,13 +965,13 @@ main {
   const storeGet = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } };
   const storeSet = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 
+  // The dashboard's "day" rolls over at midnight US Eastern time (not the
+  // browser's local time), so every device resets together.
   function getActiveDate() {
-    const now = new Date();
-    if (now.getHours() < 6) now.setDate(now.getDate() - 1);
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return `${parts.year}-${parts.month}-${parts.day}`;
   }
 
   const TEMPLATE_VERSION = 5;

@@ -612,23 +612,9 @@ body::after {
     </a>
 
     <!-- Small tile -->
-    <a class="tile" href="caffeine.html" style="--accent:#C9A36B">
-      <div class="tile-top">
-        <span class="tile-num">·05</span>
-        <span class="tile-emoji">☕</span>
-      </div>
-      <div class="tile-spacer"></div>
-      <h2 class="tile-title">Caffeine</h2>
-      <div class="tile-foot">
-        <span class="tile-sub">Intake & timing</span>
-        <span class="tile-arrow">→</span>
-      </div>
-    </a>
-
-    <!-- Small tile -->
     <a class="tile" href="pt.html" style="--accent:#FB7185">
       <div class="tile-top">
-        <span class="tile-num">·06</span>
+        <span class="tile-num">·05</span>
         <span class="tile-emoji">🏋️</span>
       </div>
       <div class="tile-spacer"></div>
@@ -642,7 +628,7 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="evotix.html" style="--accent:#38BDF8">
       <div class="tile-top">
-        <span class="tile-num">·07</span>
+        <span class="tile-num">·06</span>
         <span class="tile-emoji">💼</span>
       </div>
       <div class="tile-spacer"></div>
@@ -656,13 +642,13 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="nutrition.html" style="--accent:#BEF264">
       <div class="tile-top">
-        <span class="tile-num">·08</span>
+        <span class="tile-num">·07</span>
         <span class="tile-emoji">🥗</span>
       </div>
       <div class="tile-spacer"></div>
       <h2 class="tile-title">Nutrition</h2>
       <div class="tile-foot">
-        <span class="tile-sub">Calories & macros</span>
+        <span class="tile-sub">Calories, macros & caffeine</span>
         <span class="tile-arrow">→</span>
       </div>
     </a>
@@ -670,7 +656,7 @@ body::after {
     <!-- Small tile -->
     <a class="tile" href="habit-tracker.html" style="--accent:#A78BFA">
       <div class="tile-top">
-        <span class="tile-num">·09</span>
+        <span class="tile-num">·08</span>
         <span class="tile-emoji">✅</span>
       </div>
       <div class="tile-spacer"></div>
@@ -938,15 +924,17 @@ body::after {
   /* ---------- date helpers (mirror main.html's goal-day logic) ---------- */
   function pad2(n) { return String(n).padStart(2, '0'); }
   function dateToKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-  function getActiveDateString() {
-    const now = new Date();
-    if (now.getHours() < 6) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - 1);
-      return dateToKey(d);
-    }
-    return dateToKey(now);
+  // The dashboard's "day" rolls over at midnight US Eastern time (not the
+  // browser's local time), so every device resets together. Returns a
+  // local Date object for that Eastern calendar day (time-of-day is not
+  // meaningful here — only the Y/M/D is used anywhere this is called).
+  function easternNow() {
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return new Date(parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10));
   }
+  function getActiveDateString() { return dateToKey(easternNow()); }
   function formatDate(yyyy_mm_dd) {
     const parts = yyyy_mm_dd.split('-').map(Number);
     const d = new Date(parts[0], parts[1] - 1, parts[2]);
@@ -1270,10 +1258,13 @@ body::after {
   // ---- act on the dashboard: log food/water, add a goal, log an Evotix ----
   // ---- opportunity, or update a Life Goal — all from one Jarvis reply. ----
   function jvDateToKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  // The dashboard's "day" rolls over at midnight US Eastern time (not the
+  // browser's local time), so every device resets together.
   function jvActiveDate() {
-    const now = new Date();
-    if (now.getHours() < 6) { const d = new Date(now); d.setDate(d.getDate() - 1); return d; }
-    return now;
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return new Date(parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10));
   }
   function jvWeekStartKey(d) {
     const day = d.getDay();
@@ -1647,10 +1638,13 @@ body::after {
 
   function pad2(n) { return String(n).padStart(2, '0'); }
   function dateToKey(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  // The dashboard's "day" rolls over at midnight US Eastern time (not the
+  // browser's local time), so every device resets together.
   function getActiveDate() {
-    const now = new Date();
-    if (now.getHours() < 6) { const d = new Date(now); d.setDate(d.getDate() - 1); return d; }
-    return now;
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return new Date(parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10));
   }
   function getActiveDateString() { return dateToKey(getActiveDate()); }
   function habitKey(dateStr) { return 'habit:log:' + dateStr; }

@@ -225,11 +225,17 @@ body::after {
 
   function pad2(n) { return String(n).padStart(2, '0'); }
   function dateToKey(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+  // The dashboard's "day" rolls over at midnight US Eastern time (not the
+  // browser's local time), so every device resets together.
+  function easternNow() {
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return new Date(parseInt(parts.year, 10), parseInt(parts.month, 10) - 1, parseInt(parts.day, 10));
+  }
   function todayKey() {
-    const now = new Date();
-    // matches the 6am-cutoff "active date" used everywhere else in the dashboard
-    if (now.getHours() < 6) { const d = new Date(now); d.setDate(d.getDate() - 1); return dateToKey(d.getFullYear(), d.getMonth(), d.getDate()); }
-    return dateToKey(now.getFullYear(), now.getMonth(), now.getDate());
+    const d = easternNow();
+    return dateToKey(d.getFullYear(), d.getMonth(), d.getDate());
   }
   function daysInMonth(y, m) { return new Date(y, m + 1, 0).getDate(); }
   function loadLog(dateStr) {
@@ -239,7 +245,7 @@ body::after {
 
   const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
-  const today = new Date();
+  const today = easternNow();
   const TODAY_KEY = todayKey();
   let viewYear = today.getFullYear();
   let viewMonth = today.getMonth(); // 0-indexed
@@ -257,8 +263,7 @@ body::after {
 
   function computeCurrentStreak() {
     let count = 0;
-    let cursor = new Date();
-    if (cursor.getHours() < 6) cursor.setDate(cursor.getDate() - 1);
+    let cursor = easternNow();
     const key0 = dateToKey(cursor.getFullYear(), cursor.getMonth(), cursor.getDate());
     const log0 = loadLog(key0);
     if (log0 && HABITS.every(h => log0[h.id])) count++;

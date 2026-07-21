@@ -238,10 +238,6 @@ body.topbar-modal-open {
     <span class="bottombar-tab-icon">📊</span>
     <span>Finance</span>
   </a>
-  <a href="caffeine.html" class="bottombar-tab" data-page="caffeine">
-    <span class="bottombar-tab-icon">☕</span>
-    <span>Caffeine</span>
-  </a>
   <a href="pt.html" class="bottombar-tab" data-page="pt">
     <span class="bottombar-tab-icon">🏋️</span>
     <span>PT</span>
@@ -273,7 +269,6 @@ body.topbar-modal-open {
     if (p.endsWith('gym.html')) return 'fitness';
     if (p.endsWith('nutrition.html')) return 'nutrition';
     if (p.endsWith('finance.html')) return 'finance';
-    if (p.endsWith('caffeine.html')) return 'caffeine';
     if (p.endsWith('pt.html')) return 'pt';
     if (p.endsWith('evotix.html') || p.endsWith('outreach.html')) return 'evotix';
     return 'main'; // index.html, /, or anything else falls back to main
@@ -315,21 +310,18 @@ body.topbar-modal-open {
     document.body.classList.add('has-bottombar');
   }
 
-  // -------- Active-date helpers (match the goals page 6 AM rollover) --------
-  function activeDateKey() {
-    const now = new Date();
-    const d = new Date(now);
-    if (now.getHours() < 6) d.setDate(d.getDate() - 1);
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
+  // -------- Active-date helpers — the dashboard's "day" rolls over at
+  // midnight US Eastern time (not the browser's local time), so every
+  // device resets together at the same moment regardless of where it's
+  // opened from. Intl's America/New_York zone handles EST/EDT correctly.
+  function easternDateKey() {
+    const fmt = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = {};
+    fmt.formatToParts(new Date()).forEach(p => { if (p.type !== 'literal') parts[p.type] = p.value; });
+    return parts.year + '-' + parts.month + '-' + parts.day;
   }
-  function calendarDateKey() {
-    const d = new Date();
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
-  }
+  function activeDateKey() { return easternDateKey(); }
+  function calendarDateKey() { return easternDateKey(); }
 
   // -------- Read progress from localStorage --------
   function getGoalsProgress() {
