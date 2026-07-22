@@ -283,6 +283,49 @@ body::after {
   .gm-card { padding: 16px; }
   .modal { padding: 18px; }
 }
+
+/* ===== Competitor battle cards ===== */
+.battlecard-search { margin-bottom: 12px; }
+.battlecard-grid { display: flex; flex-direction: column; gap: 10px; }
+.battlecard {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px; overflow: hidden;
+  backdrop-filter: blur(24px) saturate(1.2); -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  transition: border-color 0.15s;
+}
+.battlecard.open { border-color: rgba(255,255,255,0.14); }
+.battlecard-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 18px; cursor: pointer; user-select: none;
+}
+.battlecard-head:hover { background: rgba(255,255,255,0.02); }
+.battlecard-head-left { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.battlecard-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.battlecard-position { font-size: 11.5px; color: var(--text-tertiary); }
+.battlecard-chevron { font-size: 13px; color: var(--text-tertiary); flex-shrink: 0; transition: transform 0.2s; }
+.battlecard.open .battlecard-chevron { transform: rotate(180deg); }
+.battlecard-body { display: none; padding: 0 18px 18px; }
+.battlecard.open .battlecard-body { display: block; }
+.battlecard-sub { margin-top: 14px; }
+.battlecard-sub:first-child { margin-top: 4px; }
+.battlecard-sub-h {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 8px;
+}
+.battlecard-sub-h.problems { color: var(--danger); }
+.battlecard-sub-h.wins { color: var(--success); }
+.battlecard-sub-h.talk { color: var(--accent); }
+.battlecard-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+.battlecard-list li { margin-bottom: 5px; }
+.battlecard-list li:last-child { margin-bottom: 0; }
+.battlecard-talk {
+  background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.18);
+  border-radius: 11px; padding: 12px 14px; font-size: 13px; color: var(--text-secondary);
+  line-height: 1.6; font-style: italic;
+}
+.battlecard-talk::before { content: '"'; font-style: normal; color: var(--accent); font-weight: 700; margin-right: 2px; }
+.battlecard-talk::after { content: '"'; font-style: normal; color: var(--accent); font-weight: 700; margin-left: 2px; }
+.battlecard-empty { font-size: 12.5px; color: var(--text-tertiary); font-style: italic; padding: 8px 2px; }
 </style>
 </head>
 <body>
@@ -305,6 +348,12 @@ body::after {
       </div>
       <div class="gm-status" id="cStatus"></div>
     </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Competitor Battle Cards</div>
+    <input class="gm-input battlecard-search" id="bcSearch" type="text" placeholder="🔍 Filter by competitor name…" autocomplete="off">
+    <div class="battlecard-grid" id="battlecardGrid"></div>
   </div>
 
   <div class="section">
@@ -1436,8 +1485,270 @@ body::after {
     return wrap;
   }
 
+  /* ---------- competitor battle cards ---------- */
+  // Static reference content, not stored per-company — problems are grounded
+  // in real G2/Capterra review patterns (researched), "why we win" maps to
+  // Evotix's actual differentiators (no-code config, mobile-first, unified
+  // EHS&S data model, embedded AI) and the segment split (Assure = mid-market,
+  // 360 = enterprise) used elsewhere in this app. Takedown lines follow the
+  // same NEPQ-style approach as the call-script generator in
+  // api/outreach-content.js: get the PROSPECT to say the pain out loud with a
+  // question, don't just pitch at them.
+  const BATTLECARDS = [
+    {
+      name: 'Intelex',
+      position: 'Large established enterprise EHSQ platform (Fluke/Fortive) — very common incumbent',
+      problems: [
+        'Slow performance, especially in reporting — delays are a repeated complaint',
+        '"Not user-friendly" / UI issues are the top-cited cons on G2',
+        'Poor or slow customer support response times',
+        'Long implementations — enterprise deployments average 7+ months (vs. much faster no-code rollouts) and commonly run $100K-$500K+/yr',
+        'Some customers stay wary of patching to newer versions for fear of breaking things'
+      ],
+      wins: [
+        'No-code configuration means workflow changes ship in days, not a 7+ month IT-dependent rollout',
+        'Faster time-to-value and lower total cost than Intelex\'s enterprise price tag',
+        'Unified EHS&S data model instead of Intelex\'s more modular, bolted-together feel',
+        'Mobile-first design and embedded AI vs. a platform reviewers call slow and hard to use'
+      ],
+      talk: 'How long did your last workflow or form change actually take to go live in Intelex — and who had to get involved to make it happen?'
+    },
+    {
+      name: 'Cority',
+      position: 'Enterprise, especially strong in occupational health — common at Fortune 500s',
+      problems: [
+        'Interface feels outdated and unintuitive, especially for new users',
+        'Individual modules (e.g. "My Metrics") called out as clunky, with layouts that don\'t stick',
+        'Expensive on an annual basis',
+        'Background configuration items can break the entire system if not set up correctly',
+        'Inconsistent onboarding / account management reported by some customers'
+      ],
+      wins: [
+        'Modern, no-code interface vs. an admittedly outdated and complex one',
+        'Single unified data model instead of module-by-module fragility where one misconfigured setting can break the whole system',
+        'Faster onboarding for new users — no steep learning curve to defend',
+        'Mobile-first and embedded AI vs. Cority\'s more legacy, occ-health-centric architecture'
+      ],
+      talk: 'How long does it take a brand-new user on your team to actually get comfortable in Cority day-to-day?'
+    },
+    {
+      name: 'Enablon',
+      position: 'Wolters Kluwer — global enterprise standard, largest deployment scale, ESG/GRC-heavy',
+      problems: [
+        'Complexity is the #1 complaint — G2 ease-of-use score around 6.7/10, well below peers',
+        'Steep learning curve, with users asking for better training resources',
+        'Cumbersome, slow setup process that delays deployment',
+        'Built more for admins/analysts than frontline field users'
+      ],
+      wins: [
+        'Built mobile-first specifically so frontline workers use it daily, not just power users and analysts',
+        'No-code configuration shortens the "cumbersome setup" Enablon is known for',
+        'Faster real adoption across a whole workforce, not just the reporting team',
+        'Still enterprise-grade (360) without Enablon\'s documented complexity tax'
+      ],
+      talk: 'Realistically, what percentage of your frontline team logs into Enablon regularly versus just your safety and compliance staff?'
+    },
+    {
+      name: 'VelocityEHS',
+      position: 'Strong in US industrial ops, OSHA PSM, chemical management — mid-market to enterprise',
+      problems: [
+        'Navigation described as "slow and complicated," with a clunky screen layout',
+        'Frequent bugs reported by users',
+        'Slow customer service response times',
+        'Limited report search options and weak customization in reporting output',
+        'Can feel overwhelming due to the sheer number of modules'
+      ],
+      wins: [
+        'Cleaner, faster, mobile-first UX instead of navigation reviewers call slow and complicated',
+        'No-code configurable reporting instead of VelocityEHS\'s documented reporting limitations',
+        'Unified platform experience instead of an "overwhelming" sprawl of modules',
+        'Faster support responsiveness as a concrete, provable differentiator'
+      ],
+      talk: 'How easy is it today to build a custom report in VelocityEHS without opening a support ticket?'
+    },
+    {
+      name: 'Sphera',
+      position: 'Asset-intensive industries — oil & gas, chemicals, mining — process safety, very enterprise, very expensive',
+      problems: [
+        'High cost — pricing starts around $40K/yr and runs well into six figures for enterprise rollouts',
+        'Implementation complexity is the top criticism — chemical/product stewardship deployments need months of planning and extensive data migration',
+        'Steep UI learning curve, even though core workflows are seen as intuitive once learned',
+        'Heavy reliance on data services and consultants to get live'
+      ],
+      wins: [
+        'Enterprise-grade EHS&S (360) with materially faster, less consultant-dependent implementation via no-code configuration',
+        'Lower total cost of ownership without Sphera\'s "months not weeks" rollout tax',
+        'Still built for asset-intensive, high-risk industries — without the multi-month data migration project'
+      ],
+      talk: 'How long did your Sphera implementation actually take end to end, and how many outside consultants or data specialists were brought in to get there?'
+    },
+    {
+      name: 'Benchmark Gensuite',
+      position: 'Global, modular, medium-to-high-risk industries — positions itself on "practical deployment"',
+      problems: [
+        'Outdated visual appearance cited repeatedly — "older-looking platform," UI not easy to use',
+        'Interface described as "ridiculously complex" and difficult to change',
+        'Low user engagement — companies struggle to get people to actually use the platform',
+        'Heavy training investment required, with employees still struggling years into using it'
+      ],
+      wins: [
+        'Modern, mobile-first interface that actually drives field adoption — Gensuite\'s own reviewers cite adoption as their #1 weakness',
+        'No-code configurability instead of an interface that "cannot be changed" without deep platform knowledge',
+        'Faster onboarding, since the platform doesn\'t require years of training to use comfortably'
+      ],
+      talk: 'How\'s adoption been among your field and frontline team in Gensuite — are they actually logging in day to day?'
+    },
+    {
+      name: 'Ideagen',
+      position: 'EHS + quality + GRC crossover — broad compliance coverage with integrated document control',
+      problems: [
+        'Customer support inconsistency — some reviewers describe finger-pointing and missed SLA resolution times',
+        'Performance slowness, particularly in data retrieval and reporting',
+        'Training module specifically flagged as killing engagement and usage at many locations',
+        'EHS is one of several compliance product lines, not the core focus'
+      ],
+      wins: [
+        'Purpose-built EHS&S platform — safety workflows are the product, not a module bolted onto a broader GRC/quality suite',
+        'More consistent, responsive support as a concrete differentiator',
+        'Mobile-first design built for actual field engagement, not a training tool reviewers say kills usage'
+      ],
+      talk: 'Is EHS Ideagen\'s core product, or is it one of several compliance modules they sell you alongside quality and document control?'
+    },
+    {
+      name: 'SafetyCulture (iAuditor)',
+      position: 'Extremely common starting point — SMB/mid-market, inspections & checklists, often free-to-start, bottom-up adoption',
+      problems: [
+        'Not a true EHS system — no centralized risk register, no formalized controls, no real-time mitigation tracking',
+        'Lacks enterprise user roles, access controls, and escalation paths as companies grow',
+        'Reports need manual rebuilding in Excel after export — quality/safety managers redo the work by hand',
+        'Rigid and limited offline in unpredictable, high-risk field environments',
+        'Companies routinely outgrow it once safety needs mature past basic checklists'
+      ],
+      wins: [
+        'This is the easiest competitor to beat — SafetyCulture is an inspection/checklist tool, not an EHS management system',
+        'Evotix has real incident management, a risk register, corrective-action tracking to closure, and audit-ready reporting out of the box',
+        'No painful "graduation" moment later — the gap SafetyCulture customers eventually hit is the reason to switch now, not after an incident exposes it'
+      ],
+      talk: 'When you have an incident today, what actually happens after the checklist gets filled out — who owns tracking the corrective action all the way to closure?'
+    },
+    {
+      name: 'EcoOnline',
+      position: 'UK-based, strong on SDS/chemical management and COSHH — expanding into broader EHS',
+      problems: [
+        'App slowness, especially uploading photos in the field',
+        'Reporting module restricted to administrative staff only — regular users can\'t pull their own reports',
+        'Audit scoring features and customization described as limited, requiring workarounds',
+        'Not user-friendly when switching between jobsites',
+        'Inconsistent support when working through bugs'
+      ],
+      wins: [
+        'Every user gets meaningful, no-code-configurable reporting access — not gated to admins only like EcoOnline',
+        'Faster mobile performance for field-heavy teams',
+        'Broader, unified EHS&S scope beyond chemical/SDS management'
+      ],
+      talk: 'Who on your team can actually pull their own custom report in EcoOnline today — or does it always have to go through your EHS manager?'
+    },
+    {
+      name: 'HSI Donesafe',
+      position: 'No-code, simplicity-first positioning, real-time dashboards — mid-market',
+      problems: [
+        'Reporting dashboard is limited compared to real BI tools — teams end up exporting to Power BI for real analysis',
+        'Can\'t drill down within dashboards',
+        'Support and requested development described as slow',
+        'Frequent minor bugs (dropdowns not sorted, image inserts realigning layouts)',
+        'Mobile app described as "very basic" with no manual or training provided'
+      ],
+      wins: [
+        'Robust reporting that doesn\'t force a separate export-to-Power-BI workaround to get board-ready numbers',
+        'A genuinely capable, well-documented mobile experience instead of a "very basic" app with no training material',
+        'Faster support and development responsiveness at enterprise scale'
+      ],
+      talk: 'How do you currently get from a Donesafe dashboard to something you\'d actually put in front of leadership — is that a manual export today?'
+    }
+  ];
+
+  function buildBattlecard(bc) {
+    const el = document.createElement('div');
+    el.className = 'battlecard';
+
+    const head = document.createElement('div');
+    head.className = 'battlecard-head';
+    const left = document.createElement('div');
+    left.className = 'battlecard-head-left';
+    const name = document.createElement('div');
+    name.className = 'battlecard-name';
+    name.textContent = bc.name;
+    const position = document.createElement('div');
+    position.className = 'battlecard-position';
+    position.textContent = bc.position;
+    left.append(name, position);
+    const chevron = document.createElement('span');
+    chevron.className = 'battlecard-chevron';
+    chevron.textContent = '▾';
+    head.append(left, chevron);
+    head.addEventListener('click', () => {
+      el.classList.toggle('open');
+    });
+
+    const body = document.createElement('div');
+    body.className = 'battlecard-body';
+
+    function buildSub(labelClass, labelText, items) {
+      const sub = document.createElement('div');
+      sub.className = 'battlecard-sub';
+      const h = document.createElement('div');
+      h.className = 'battlecard-sub-h ' + labelClass;
+      h.textContent = labelText;
+      const list = document.createElement('ul');
+      list.className = 'battlecard-list';
+      items.forEach((it) => {
+        const li = document.createElement('li');
+        li.textContent = it;
+        list.appendChild(li);
+      });
+      sub.append(h, list);
+      return sub;
+    }
+
+    body.appendChild(buildSub('problems', 'Common problems to bring up', bc.problems));
+    body.appendChild(buildSub('wins', 'Why 360 / Assure wins', bc.wins));
+
+    const talkSub = document.createElement('div');
+    talkSub.className = 'battlecard-sub';
+    const talkH = document.createElement('div');
+    talkH.className = 'battlecard-sub-h talk';
+    talkH.textContent = 'Takedown line for the call';
+    const talkBox = document.createElement('div');
+    talkBox.className = 'battlecard-talk';
+    talkBox.textContent = bc.talk;
+    talkSub.append(talkH, talkBox);
+    body.appendChild(talkSub);
+
+    el.append(head, body);
+    return el;
+  }
+
+  function renderBattlecards(filterText) {
+    const grid = $('battlecardGrid');
+    if (!grid) return;
+    const q = (filterText || '').trim().toLowerCase();
+    const list = q ? BATTLECARDS.filter((bc) => bc.name.toLowerCase().includes(q)) : BATTLECARDS;
+    grid.innerHTML = '';
+    if (!list.length) {
+      const empty = document.createElement('div');
+      empty.className = 'battlecard-empty';
+      empty.textContent = 'No competitor matches "' + filterText + '".';
+      grid.appendChild(empty);
+      return;
+    }
+    list.forEach((bc) => grid.appendChild(buildBattlecard(bc)));
+  }
+  const bcSearchEl = $('bcSearch');
+  if (bcSearchEl) bcSearchEl.addEventListener('input', () => renderBattlecards(bcSearchEl.value));
+
   /* ---------- boot ---------- */
   renderLists();
+  renderBattlecards();
 
   // Wait for DOMContentLoaded — sync.js loads with `defer`, so it hasn't run
   // yet at the point this inline script executes; without this wait
