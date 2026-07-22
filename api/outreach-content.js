@@ -298,10 +298,25 @@ export default async function handler(req, res) {
 
   try {
     const data = await callClaude(apiKey, prompt, maxTokens, TOOL_SCHEMAS[type]);
-    return res.status(200).json(humanizeOutput(type, data));
+    const isConnectionNote = type === 'linkedin' && n <= 0;
+    return res.status(200).json(humanizeOutput(type, data, { isConnectionNote }));
   } catch (e) {
     return res.status(500).json({ error: 'outreach content failed: ' + (e && e.message ? e.message : String(e)) });
   }
+}
+
+// LinkedIn hard-caps connection-request notes at 300 characters — sending a
+// longer one gets silently truncated by LinkedIn itself, mid-sentence. The
+// prompt already asks the model to stay under that, but it doesn't always
+// comply, so this is the deterministic backstop that guarantees it. Cuts at
+// the last word boundary rather than mid-word, and only falls back to a hard
+// cut if that would lose too much of the message.
+function truncateToLimit(s, limit) {
+  if (!s || typeof s !== 'string' || s.length <= limit) return s;
+  const cut = s.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(' ');
+  const trimmed = lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return trimmed.replace(/[\s,;:\-–—]+$/, '').trim();
 }
 
 // Backstop for the em-dash/AI-tell instructions above — the model mostly
@@ -318,12 +333,15 @@ function humanizeText(s) {
     .trim();
 }
 
-function humanizeOutput(type, data) {
+function humanizeOutput(type, data, opts) {
+  opts = opts || {};
   if (type === 'email') {
     return { subject: humanizeText(data.subject), body: humanizeText(data.body) };
   }
   if (type === 'linkedin') {
-    return { body: humanizeText(data.body) };
+    let body = humanizeText(data.body);
+    if (opts.isConnectionNote) body = truncateToLimit(body, 300);
+    return { body: body };
   }
   if (type === 'callscript') {
     return {

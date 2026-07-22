@@ -1761,6 +1761,35 @@ body::after {
         director: 'As you add locations or more complex programs, have you run into any limits on how EHS Insight can be configured?',
         exec: 'How confident are you in the reports EHS Insight generates when you need to make a real case to leadership?'
       }
+    },
+    {
+      name: 'Origami Risk',
+      position: 'Primarily a risk management / insurance claims (RMIS/GRC) platform that added EHS as a module — competes more directly with Riskonnect than with pure-play EHS&S vendors',
+      problems: [
+        'Users report a high volume of recurring bugs and defects that have materially affected system stability and day-to-day usability',
+        'Document and incident-report uploads can stall on connection issues — a real problem when that\'s happening mid-incident',
+        'No published pricing — custom quotes only, and setup/onboarding (configuration, data migration, training) is billed as a separate layer on top of the base cost',
+        'Falls on the more expensive end of the GRC software range',
+        'EHS is one module bolted onto a much broader risk, insurance, and claims platform, not the product\'s core DNA — EHS-specific depth and roadmap priority can play second fiddle to the risk/claims side of the business',
+        'Small footprint specifically in EHS relative to pure-play competitors — reviews and case studies skew toward risk/insurance use cases, not safety/compliance'
+      ],
+      wins: [
+        'Purpose-built, EHS-first platform vs. a risk/insurance/claims (RMIS) platform with EHS bolted on as an add-on module',
+        'No-code configurability and a unified EHS&S data model instead of a system reviewers describe as bug-prone and stability-impacting',
+        'Mobile-first incident and document capture that doesn\'t depend on a stable connection to succeed',
+        'Transparent, single-platform pricing instead of a custom-quote-plus-onboarding-layer model',
+        'A roadmap and support model built entirely around EHS&S, not shared with a much larger risk/claims/insurance product line'
+      ],
+      watchFor: [
+        'Any mention that Origami was bought primarily for risk, insurance, or claims management, with EHS added on afterward — that\'s a sign the safety team is working around a tool that wasn\'t built for them',
+        'Complaints about bugs, stability, or failed uploads during an actual incident or audit',
+        'A parent risk/insurance team driving the tool selection instead of EHS/safety leadership'
+      ],
+      talks: {
+        manager: 'How often do you run into a bug or a stalled upload when you\'re actually in the middle of logging an incident or audit in Origami?',
+        director: 'Was Origami selected primarily for risk, insurance, or claims management, with EHS added on afterward — and if so, how much say did your team actually have in how the EHS side works?',
+        exec: 'If EHS is one module inside a much bigger risk and claims platform, how confident are you that it gets the same roadmap priority and investment as the parts of the business actually driving that purchase?'
+      }
     }
   ];
 
