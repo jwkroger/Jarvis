@@ -316,7 +316,11 @@ body::after {
 .battlecard-sub-h.wins { color: var(--success); }
 .battlecard-sub-h.watch { color: var(--warning); }
 .battlecard-sub-h.talk { color: var(--accent); }
-.battlecard-talk + .battlecard-talk { margin-top: 6px; }
+.battlecard-talk-role {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-tertiary); margin: 10px 0 5px;
+}
+.battlecard-talk-role:first-of-type { margin-top: 0; }
 .battlecard-list { margin: 0; padding-left: 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
 .battlecard-list li { margin-bottom: 5px; }
 .battlecard-list li:last-child { margin-bottom: 0; }
@@ -1522,11 +1526,11 @@ body::after {
         'A new VP/Director of Safety or EHS hire — new leadership almost always re-evaluates the incumbent tool',
         'Any mention of a delayed, stalled, or over-budget Intelex rollout'
       ],
-      talks: [
-        'How long did your last workflow or form change actually take to go live in Intelex, and who had to get involved to make it happen?',
-        'When\'s your renewal with Intelex? A lot of teams start looking 6-9 months out so they\'re evaluating on their own timeline instead of scrambling right before an auto-renewal.',
-        'Since Intelex became part of Industrial Scientific under Fortive, has anything changed for you on support, account team, or the product roadmap?'
-      ]
+      talks: {
+        manager: 'How long did your last workflow or form change actually take to go live in Intelex, and who had to get involved to make it happen?',
+        director: 'When\'s your renewal with Intelex? A lot of teams start looking 6-9 months out so they\'re evaluating on their own timeline instead of scrambling right before an auto-renewal.',
+        exec: 'When Intelex has a slow support response or an outage, what\'s the actual cost to the business if a safety or compliance deadline slips because of it?'
+      }
     },
     {
       name: 'Cority',
@@ -1553,11 +1557,11 @@ body::after {
         'Multi-site or global expansion plans — rollout timeline and cost pain will surface fast',
         'Complaints about ramping new hires or turnover on the safety/EHS team'
       ],
-      talks: [
-        'How long does it take a brand-new user on your team to actually get comfortable in Cority day-to-day?',
-        'As you\'ve added modules over time, like drug and alcohol testing or medical surveillance, how has the total cost tracked against what you originally budgeted?',
-        'Cority\'s occ-health depth is real, I won\'t pretend otherwise. The real question is whether you want that living in its own module ecosystem with its own pricing, or in one platform where safety, compliance, and occ health share a single data model without the module-by-module cost creep.'
-      ]
+      talks: {
+        manager: 'How long does it take a brand-new user on your team to actually get comfortable in Cority day-to-day?',
+        director: 'As you\'ve added modules over time, like drug and alcohol testing or medical surveillance, how has the total cost tracked against what you originally budgeted?',
+        exec: 'Cority\'s occ-health depth is real, I won\'t pretend otherwise. The real question is whether you want that living in its own module ecosystem with its own pricing, or in one platform where safety, compliance, and occ health share a single data model without the module-by-module cost creep.'
+      }
     },
     {
       name: 'Enablon',
@@ -1585,11 +1589,11 @@ body::after {
         'Any mention of a platform update breaking or disrupting a customized workflow',
         'Renewal timing, especially for accounts locked into multi-year enterprise agreements'
       ],
-      talks: [
-        'Realistically, what percentage of your frontline team logs into Enablon regularly versus just your safety and compliance staff?',
-        'For an organization your size, roughly how much of Enablon\'s capability do you feel like you\'re actually using day to day?',
-        'Has an Enablon platform update ever broken or disrupted a workflow your team had customized?'
-      ]
+      talks: {
+        manager: 'Has an Enablon platform update ever broken or disrupted a workflow your team had customized, and how long did it take to fix?',
+        director: 'Realistically, what percentage of your frontline team logs into Enablon regularly versus just your safety and compliance staff?',
+        exec: 'If your frontline isn\'t consistently logging incidents in Enablon, what\'s your actual confidence level in the safety data you\'re reporting up to the board?'
+      }
     },
     {
       name: 'VelocityEHS',
@@ -1607,7 +1611,11 @@ body::after {
         'Unified platform experience instead of an "overwhelming" sprawl of modules',
         'Faster support responsiveness as a concrete, provable differentiator'
       ],
-      talks: ['How easy is it today to build a custom report in VelocityEHS without opening a support ticket?']
+      talks: {
+        manager: 'How often do you run into bugs or slow, clunky navigation just trying to get through your daily tasks in VelocityEHS?',
+        director: 'How easy is it today to build a custom report in VelocityEHS without opening a support ticket?',
+        exec: 'When you need a board-ready safety report out of VelocityEHS, how much manual rework does that usually take?'
+      }
     },
     {
       name: 'Sphera',
@@ -1623,7 +1631,11 @@ body::after {
         'Lower total cost of ownership without Sphera\'s "months not weeks" rollout tax',
         'Still built for asset-intensive, high-risk industries — without the multi-month data migration project'
       ],
-      talks: ['How long did your Sphera implementation actually take end to end, and how many outside consultants or data specialists were brought in to get there?']
+      talks: {
+        manager: 'How long did it take you personally to get comfortable navigating Sphera day to day?',
+        director: 'How long did your Sphera implementation actually take end to end, and how much of that was data migration and configuration?',
+        exec: 'How many outside consultants and how much budget went into your Sphera implementation beyond the software license itself?'
+      }
     },
     {
       name: 'Benchmark Gensuite',
@@ -1639,7 +1651,11 @@ body::after {
         'No-code configurability instead of an interface that "cannot be changed" without deep platform knowledge',
         'Faster onboarding, since the platform doesn\'t require years of training to use comfortably'
       ],
-      talks: ['How\'s adoption been among your field and frontline team in Gensuite — are they actually logging in day to day?']
+      talks: {
+        manager: 'How much training does it typically take before someone on your team is comfortable entering data in Gensuite?',
+        director: 'How\'s adoption been among your field and frontline team in Gensuite — are they actually logging in day to day?',
+        exec: 'If your team isn\'t consistently engaging with Gensuite day to day, what does that mean for how much you can trust the safety data you\'re basing decisions on?'
+      }
     },
     {
       name: 'Ideagen',
@@ -1655,7 +1671,11 @@ body::after {
         'More consistent, responsive support as a concrete differentiator',
         'Mobile-first design built for actual field engagement, not a training tool reviewers say kills usage'
       ],
-      talks: ['Is EHS Ideagen\'s core product, or is it one of several compliance modules they sell you alongside quality and document control?']
+      talks: {
+        manager: 'How\'s engagement been with Ideagen\'s training module on your team — are people actually completing it?',
+        director: 'How responsive has Ideagen\'s support actually been when something urgent comes up with your program?',
+        exec: 'Is EHS Ideagen\'s core product, or is it one of several compliance modules they sell you alongside quality and document control?'
+      }
     },
     {
       name: 'SafetyCulture (iAuditor)',
@@ -1672,7 +1692,11 @@ body::after {
         'Evotix has real incident management, a risk register, corrective-action tracking to closure, and audit-ready reporting out of the box',
         'No painful "graduation" moment later — the gap SafetyCulture customers eventually hit is the reason to switch now, not after an incident exposes it'
       ],
-      talks: ['When you have an incident today, what actually happens after the checklist gets filled out — who owns tracking the corrective action all the way to closure?']
+      talks: {
+        manager: 'How much manual rework do you personally do in Excel after pulling a report out of SafetyCulture?',
+        director: 'When you have an incident today, what actually happens after the checklist gets filled out — who owns tracking the corrective action all the way to closure?',
+        exec: 'If an incident happened today, what\'s your actual audit trail from the checklist to a closed corrective action — would that hold up if OSHA came asking?'
+      }
     },
     {
       name: 'EcoOnline',
@@ -1689,7 +1713,11 @@ body::after {
         'Faster mobile performance for field-heavy teams',
         'Broader, unified EHS&S scope beyond chemical/SDS management'
       ],
-      talks: ['Who on your team can actually pull their own custom report in EcoOnline today — or does it always have to go through your EHS manager?']
+      talks: {
+        manager: 'How\'s app performance for you day to day, especially uploading photos or switching between jobsites?',
+        director: 'Who on your team can actually pull their own custom report in EcoOnline today — or does it always have to go through your EHS manager?',
+        exec: 'If only your EHS manager can pull a report in EcoOnline, how much real-time visibility does the rest of leadership actually have into safety performance?'
+      }
     },
     {
       name: 'HSI Donesafe',
@@ -1706,7 +1734,11 @@ body::after {
         'A genuinely capable, well-documented mobile experience instead of a "very basic" app with no training material',
         'Faster support and development responsiveness at enterprise scale'
       ],
-      talks: ['How do you currently get from a Donesafe dashboard to something you\'d actually put in front of leadership — is that a manual export today?']
+      talks: {
+        manager: 'How\'s the mobile app been for your field team day to day — is it actually giving them what they need?',
+        director: 'How long does it typically take to get a support or development request resolved with Donesafe?',
+        exec: 'How do you currently get from a Donesafe dashboard to something you\'d actually put in front of the board — is that a manual export today?'
+      }
     },
     {
       name: 'EHS Insight',
@@ -1724,11 +1756,11 @@ body::after {
         'Unified EHS&S data model with more capable reporting/BI than "useful but not flexible"',
         'Backed by a platform recognized as a Verdantix Green Quadrant Leader, with room to grow into 360-level capability later instead of a full platform swap once they outgrow a pure mid-market tool'
       ],
-      talks: [
-        'When something urgent comes up, say right in the middle of an incident, what\'s your actual path to a real person in EHS Insight, not a support ticket?',
-        'How confident are you in the reports EHS Insight generates when you need to make a real case to leadership?',
-        'As you add locations or more complex programs, have you run into any limits on how EHS Insight can be configured?'
-      ]
+      talks: {
+        manager: 'When something urgent comes up, say right in the middle of an incident, what\'s your actual path to a real person in EHS Insight, not a support ticket?',
+        director: 'As you add locations or more complex programs, have you run into any limits on how EHS Insight can be configured?',
+        exec: 'How confident are you in the reports EHS Insight generates when you need to make a real case to leadership?'
+      }
     }
   ];
 
@@ -1790,15 +1822,41 @@ body::after {
       body.appendChild(buildSub('watch', 'Watch for — signals this account is winnable now', bc.watchFor));
     }
 
-    const talks = Array.isArray(bc.talks) ? bc.talks : (bc.talk ? [bc.talk] : []);
-    if (talks.length) {
+    // Talks are keyed by who's on the phone — a Manager cares about their own
+    // daily admin burden, a Director cares about program-wide outcomes, a
+    // VP/Exec cares about risk and board-level cost, so the same competitor
+    // gets a different angle of question depending on the contact's seniority
+    // (mirrors the roleAngle() tiers the AI call-script generator already uses).
+    const ROLE_LABELS = { manager: 'For a Manager / Operational contact', director: 'For a Director', exec: 'For a VP / Executive' };
+    const ROLE_ORDER = ['manager', 'director', 'exec'];
+    const talksByRole = (bc.talks && !Array.isArray(bc.talks)) ? bc.talks : {};
+    const legacyTalks = Array.isArray(bc.talks) ? bc.talks : (bc.talk ? [bc.talk] : []);
+    const presentRoles = ROLE_ORDER.filter((r) => talksByRole[r]);
+    if (presentRoles.length) {
       const talkSub = document.createElement('div');
       talkSub.className = 'battlecard-sub';
       const talkH = document.createElement('div');
       talkH.className = 'battlecard-sub-h talk';
-      talkH.textContent = talks.length > 1 ? 'Takedown lines for the call' : 'Takedown line for the call';
+      talkH.textContent = 'Takedown lines, by who you\'re talking to';
       talkSub.appendChild(talkH);
-      talks.forEach((t) => {
+      presentRoles.forEach((r) => {
+        const roleLabel = document.createElement('div');
+        roleLabel.className = 'battlecard-talk-role';
+        roleLabel.textContent = ROLE_LABELS[r];
+        const talkBox = document.createElement('div');
+        talkBox.className = 'battlecard-talk';
+        talkBox.textContent = talksByRole[r];
+        talkSub.append(roleLabel, talkBox);
+      });
+      body.appendChild(talkSub);
+    } else if (legacyTalks.length) {
+      const talkSub = document.createElement('div');
+      talkSub.className = 'battlecard-sub';
+      const talkH = document.createElement('div');
+      talkH.className = 'battlecard-sub-h talk';
+      talkH.textContent = legacyTalks.length > 1 ? 'Takedown lines for the call' : 'Takedown line for the call';
+      talkSub.appendChild(talkH);
+      legacyTalks.forEach((t) => {
         const talkBox = document.createElement('div');
         talkBox.className = 'battlecard-talk';
         talkBox.textContent = t;
