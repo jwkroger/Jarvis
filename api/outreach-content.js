@@ -51,6 +51,28 @@ export default async function handler(req, res) {
     'One clear, low-friction CTA — a quick question or a short call, never "let\'s book a 30-minute demo" on an early touch.'
   ];
 
+  // Real Evotix resource-center articles — used on follow-up emails only, so
+  // a later touch can offer something genuinely useful (not just "checking
+  // in") instead of repeating the cold-open pitch. Titles/URLs are real
+  // pages; keep this list accurate rather than letting the model invent a
+  // link, since a broken/fabricated URL in a rep's email is worse than none.
+  const RESOURCE_LINKS = [
+    { title: 'Early Signs of SIF Risk: How To Identify Serious Injury and Fatality Precursors', url: 'https://www.evotix.com/resources/blog/early-signs-of-sif-risk-how-to-identify-serious-injury-and-fatality-precursors', relevantFor: 'safety/EHS managers and directors focused on serious injury & fatality (SIF) prevention' },
+    { title: 'Serious Injury and Fatality Prevention: Definitions, Barriers and What EHS Leaders Say Actually Works', url: 'https://www.evotix.com/resources/blog/sif-prevention-definitions-barriers-and-what-ehs-leaders-say-actually-works', relevantFor: 'EHS/safety directors and execs weighing SIF prevention program changes' },
+    { title: 'The Risk Assessment Playbook: Steps, Tools and Best Practices', url: 'https://www.evotix.com/resources/blog/what-is-a-risk-assessment', relevantFor: 'safety managers doing or improving risk assessments (risk matrices, JHAs)' },
+    { title: 'The Ultimate Guide to EHS: What It Means and Why It Matters', url: 'https://www.evotix.com/resources/blog/the-ultimate-guide-to-ehss-meaning-importance', relevantFor: 'contacts newer to EHS as a discipline, or when the account research is thin' },
+    { title: 'The Ultimate Guide to Chemical Management', url: 'https://www.evotix.com/resources/blog/the-ultimate-guide-to-chemical-management', relevantFor: 'manufacturing/chemical/industrial companies handling hazardous materials' },
+    { title: 'Best ESG and Sustainability Platforms for Industrial Organizations', url: 'https://www.evotix.com/resources/best-esg-and-sustainability-platforms-for-industrial-organizations', relevantFor: 'execs/directors evaluating ESG or sustainability software' },
+    { title: 'Why Connecting Your EHS and ESG Data Drives Operational Excellence', url: 'https://www.evotix.com/resources/blog/why-connecting-your-ehs-and-esg-data-drives-operational-excellence', relevantFor: 'directors/execs interested in unifying EHS and ESG reporting/data' },
+    { title: 'Understanding the CSRD Reporting Timeline', url: 'https://www.evotix.com/resources/blog/understanding-the-csrd-reporting-timeline', relevantFor: 'EU-exposed companies facing CSRD sustainability-reporting deadlines' },
+    { title: 'Are Spreadsheets Fit for EHS Management? The Drawbacks and Limitations of Outdated Tools', url: 'https://www.evotix.com/resources/blog/5-things-your-spreadsheets-cant-do', relevantFor: 'accounts still running EHS on spreadsheets or manual paper processes' },
+    { title: 'The Benefits of SaaS for EHS Software', url: 'https://www.evotix.com/resources/blog/health-and-safety-software-delivered-the-benefits-of-saas-software-as-a-service', relevantFor: 'accounts comparing cloud/SaaS EHS tools to an on-prem or legacy system' },
+    { title: 'Top 7 Software Platforms that Combine ESG and EHS Capabilities', url: 'https://www.evotix.com/resources/top-7-software-platforms-that-combine-esg-and-ehs-capabilities', relevantFor: 'accounts actively comparing EHS/ESG platforms — a consideration-stage signal' },
+    { title: 'The Relationship Between Business Intelligence and EHS Performance', url: 'https://www.evotix.com/resources/blog/elevating-ehs-excellence-the-impact-of-business-intelligence', relevantFor: 'directors/execs who care about EHS data, analytics, or board-level reporting' },
+    { title: 'Incident Management vs. Incident Prevention: Which Comes First?', url: 'https://www.evotix.com/resources/blog/incident-management-vs-incident-prevention-which-comes-first', relevantFor: 'safety managers/directors focused on incident reporting or prevention culture' },
+    { title: 'Building a Contractor Safety Management Program: Challenges and Best Practices', url: 'https://www.evotix.com/resources/blog/what-is-contractor-safety-management', relevantFor: 'construction/industrial companies managing contractor or third-party safety' }
+  ];
+
   const n = Math.max(0, parseInt(touchCount, 10) || 0);
   function sequenceStage() {
     if (n <= 0) {
@@ -95,6 +117,20 @@ export default async function handler(req, res) {
         'ultimately need to sign off (ECONOMIC BUYER) — a light, curious mention, not a direct budget/procurement ask.';
     }
     return 'This is a break-up touch — skip MEDDPICC discovery framing entirely and focus purely on the relationship close.';
+  }
+
+  // Follow-up emails only (never the cold open, which stays short and
+  // link-free) — gives the model a real Evotix resource-center article to
+  // optionally share instead of a plain "just checking in." Picking from a
+  // fixed, real list (rather than letting the model invent a URL) keeps
+  // every link a rep actually sends live and correct.
+  function resourceLinkBlock() {
+    if (n <= 0) return '';
+    return 'Optional resource link — if (and only if) one of these is genuinely relevant to THIS contact\'s role, ' +
+      'industry, or the research/notes above, you may naturally mention it and include its exact URL once in the body ' +
+      '(e.g. "we actually wrote a short piece on this — [url]"). Pick at most ONE. If nothing here is a good fit, don\'t ' +
+      'force it or fall back to the generic evotix.com homepage — just skip it entirely:\n' +
+      RESOURCE_LINKS.map((r) => '- "' + r.title + '" (' + r.url + ') — relevant for ' + r.relevantFor).join('\n') + '\n\n';
   }
 
   // Titles vary too much to hardcode a lookup table, so bucket by seniority
@@ -253,6 +289,7 @@ export default async function handler(req, res) {
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       meddpiccAngle() + ' If it doesn\'t fit naturally for this specific message, skip it rather than forcing it.\n\n' +
+      resourceLinkBlock() +
       'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       frameworkBlock + notesRepeatRule + priorBlock +
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
@@ -266,8 +303,12 @@ export default async function handler(req, res) {
       'software company, to the contact below.\n\n' + buildResearchBlock(false) + '\n' +
       sequenceStage() + '\n\n' +
       (isConnectionNote
-        ? 'This is a LinkedIn CONNECTION REQUEST note — keep it under 300 characters, warm and low-pressure, reference ' +
-          'something specific and real about their company. Do not pitch yet, just earn the connection.\n'
+        ? 'This is a LinkedIn CONNECTION REQUEST note. LinkedIn hard-caps these at 300 characters and silently cuts ' +
+          'off anything longer mid-sentence, so this is a strict limit, not a soft target. Aim for 200-260 characters ' +
+          '(roughly 35-45 words) so there is margin, and NEVER exceed 290. Before finishing, count the characters in ' +
+          'your own draft and shorten it if it is close to or over the limit. Warm and low-pressure, reference ' +
+          'something specific and real about their company. Do not pitch yet, just earn the connection. The message ' +
+          'must read as a complete thought at whatever length you land on, never trail off.\n'
         : 'This is a LinkedIn FOLLOW-UP message after connecting — keep it under 80 words, casual and low-pressure, ' +
           'reference something specific and real about their company.\n') +
       (isConnectionNote ? '' : (meddpiccAngle() + ' If it doesn\'t fit naturally for this specific message, skip it rather than forcing it.\n\n')) +
