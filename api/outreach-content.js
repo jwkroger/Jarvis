@@ -126,9 +126,16 @@ export default async function handler(req, res) {
   // enterprise) — getting the wrong one, or the wrong segment label, in front
   // of a real prospect is a credibility problem, so this is spelled out
   // explicitly rather than left for the model to infer from the summary text.
+  // Emails specifically are kept product-name-free — reps want those to
+  // reference "Evotix" only, never Assure/360, regardless of segment.
   const seg = (company.segment && String(company.segment).trim().toLowerCase()) || '';
-  const segmentBlock =
-    seg === 'enterprise'
+  function segmentBlockFor(noProductNames) {
+    if (noProductNames) {
+      return 'Segment: ' + (seg === 'enterprise' ? 'ENTERPRISE' : seg === 'mid-market' ? 'MID-MARKET' : 'not confidently determined from research') +
+        '. Never name a specific Evotix platform (do not say "Assure" or "360") — refer to it as "Evotix" or ' +
+        '"Evotix\'s platform" only.\n';
+    }
+    return seg === 'enterprise'
       ? 'Segment: ENTERPRISE. If a platform is named, it MUST be Evotix 360, not Assure. Never describe this account ' +
         'as "mid-market."\n'
       : seg === 'mid-market'
@@ -137,32 +144,34 @@ export default async function handler(req, res) {
       : 'Segment: not confidently determined from research. Do not assert this account is "mid-market" or ' +
         '"enterprise" — if a platform needs naming, keep it general (e.g. "Evotix\'s platform") rather than committing ' +
         'to Assure or 360.\n';
+  }
 
-  const researchBlock =
-    'Company: ' + company.name + '\n' +
-    (company.summary ? ('Summary: ' + company.summary + '\n') : '') +
-    segmentBlock +
-    (Array.isArray(company.useCases) && company.useCases.length
-      ? ('Relevant EHS use cases: ' + company.useCases.join('; ') + '\n') : '') +
-    (Array.isArray(company.recentNews) && company.recentNews.length
-      ? ('Recent news items (each with the date it was actually published, if known) — pick whichever is MOST relevant ' +
-         'to THIS contact\'s specific role rather than defaulting to the first one regardless of who it\'s for (a ' +
-         'safety incident matters most to a Safety/EHS contact, a regulatory item matters most to a Risk/Compliance ' +
-         'contact, an expansion or new facility could matter to any of them but connect it to whichever operational ' +
-         'challenge it creates that THIS role would personally care about): ' +
-         company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.date ? (' [dated: ' + n2.date + ']') : '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n' +
-         dateRule)
-      : '') +
-    'Contact: ' + contact.name + (contact.title ? (', ' + contact.title) : '') + '\n' +
-    (contact.title ? (roleAngle(contact.title) + '\n') : '') +
-    (company.notes && String(company.notes).trim()
-      ? ('Rep\'s notes on this COMPANY (apply to outreach with ANY contact here — e.g. tools they use, org facts, ' +
-         'timing): ' + String(company.notes).trim() + '\n')
-      : '') +
-    (contact.notes && String(contact.notes).trim()
-      ? ('Rep\'s notes on THIS SPECIFIC CONTACT (personalize only their messages with this — e.g. something said on a ' +
-         'call): ' + String(contact.notes).trim() + '\n')
-      : '');
+  function buildResearchBlock(noProductNames) {
+    return 'Company: ' + company.name + '\n' +
+      (company.summary ? ('Summary: ' + company.summary + '\n') : '') +
+      segmentBlockFor(noProductNames) +
+      (Array.isArray(company.useCases) && company.useCases.length
+        ? ('Relevant EHS use cases: ' + company.useCases.join('; ') + '\n') : '') +
+      (Array.isArray(company.recentNews) && company.recentNews.length
+        ? ('Recent news items (each with the date it was actually published, if known) — pick whichever is MOST relevant ' +
+           'to THIS contact\'s specific role rather than defaulting to the first one regardless of who it\'s for (a ' +
+           'safety incident matters most to a Safety/EHS contact, a regulatory item matters most to a Risk/Compliance ' +
+           'contact, an expansion or new facility could matter to any of them but connect it to whichever operational ' +
+           'challenge it creates that THIS role would personally care about): ' +
+           company.recentNews.map((n2) => (n2 && n2.headline || '') + (n2 && n2.date ? (' [dated: ' + n2.date + ']') : '') + (n2 && n2.note ? (' — ' + n2.note) : '')).join('; ') + '\n' +
+           dateRule)
+        : '') +
+      'Contact: ' + contact.name + (contact.title ? (', ' + contact.title) : '') + '\n' +
+      (contact.title ? (roleAngle(contact.title) + '\n') : '') +
+      (company.notes && String(company.notes).trim()
+        ? ('Rep\'s notes on this COMPANY (apply to outreach with ANY contact here — e.g. tools they use, org facts, ' +
+           'timing): ' + String(company.notes).trim() + '\n')
+        : '') +
+      (contact.notes && String(contact.notes).trim()
+        ? ('Rep\'s notes on THIS SPECIFIC CONTACT (personalize only their messages with this — e.g. something said on a ' +
+           'call): ' + String(contact.notes).trim() + '\n')
+        : '');
+  }
 
   const notesRepeatRule = (company.notes || contact.notes)
     ? 'If a note above states a fact (e.g. a tool they use, something said on a call), you may reference it — but check ' +
@@ -239,7 +248,7 @@ export default async function handler(req, res) {
   if (type === 'email') {
     prompt =
       'Write a cold outreach email from a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) ' +
-      'software company, to the contact below.\n\n' + researchBlock + '\n' +
+      'software company, to the contact below.\n\n' + buildResearchBlock(true) + '\n' +
       sequenceStage() + '\n\n' +
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
@@ -254,7 +263,7 @@ export default async function handler(req, res) {
     const isConnectionNote = n <= 0;
     prompt =
       'Write a LinkedIn outreach message from a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) ' +
-      'software company, to the contact below.\n\n' + researchBlock + '\n' +
+      'software company, to the contact below.\n\n' + buildResearchBlock(false) + '\n' +
       sequenceStage() + '\n\n' +
       (isConnectionNote
         ? 'This is a LinkedIn CONNECTION REQUEST note — keep it under 300 characters, warm and low-pressure, reference ' +
@@ -273,7 +282,7 @@ export default async function handler(req, res) {
       'software company, calling the contact below. Use current best-in-class B2B cold-calling technique: Jeremy ' +
       'Miner/NEPQ-style pattern interrupts for the opener, and MEDDPICC-style qualification (adapted into natural, ' +
       'curious spoken questions, never interrogation-style) for the discovery bullets that follow.\n\n' +
-      researchBlock + '\n' + sequenceStage() + '\n\n' +
+      buildResearchBlock(false) + '\n' + sequenceStage() + '\n\n' +
       'OPENER — write this as an ACTUAL word-for-word script, not a description:\n' +
       CALL_OPENER_RULES.map((r) => '- ' + r).join('\n') + '\n' +
       meddpiccAngle() + ' If it doesn\'t fit naturally in the opener itself, it\'s fine for it to show up in the ' +
