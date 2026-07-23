@@ -349,24 +349,71 @@ export default async function handler(req, res) {
   try {
     const data = await callClaude(apiKey, prompt, maxTokens, TOOL_SCHEMAS[type]);
     const isConnectionNote = type === 'linkedin' && n <= 0;
-    return res.status(200).json(humanizeOutput(type, data, { isConnectionNote }));
+    const result = humanizeOutput(type, data);
+    if (isConnectionNote && result.body && result.body.length > 300) {
+      result.body = await shortenConnectionNote(apiKey, result.body);
+    }
+    return res.status(200).json(result);
   } catch (e) {
     return res.status(500).json({ error: 'outreach content failed: ' + (e && e.message ? e.message : String(e)) });
   }
 }
 
-// LinkedIn hard-caps connection-request notes at 300 characters — sending a
-// longer one gets silently truncated by LinkedIn itself, mid-sentence. The
-// prompt already asks the model to stay under that, but it doesn't always
-// comply, so this is the deterministic backstop that guarantees it. Cuts at
-// the last word boundary rather than mid-word, and only falls back to a hard
-// cut if that would lose too much of the message.
+// The prompt asks the model to self-check its own character count and stay
+// under 300, and it mostly does — but when it doesn't, the old behavior was
+// to hard-truncate at the nearest word boundary, which produces exactly the
+// "cut off mid-thought" messages reps were complaining about. This instead
+// asks Claude for a genuinely shorter REWRITE of the same message (one extra
+// turn, only when actually needed), so what ships is always a complete
+// standalone note. truncateToLimit is kept only as a last-resort safety net
+// if that follow-up call itself fails or somehow still runs long.
+async function shortenConnectionNote(apiKey, body) {
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-8',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: 'Rewrite this LinkedIn connection request note so it is 300 characters or fewer (target ' +
+            '200-260), while staying a complete, natural, standalone message that keeps its core idea and ' +
+            'personalization. Do not just cut it short, write a genuinely tighter version that never trails off ' +
+            'mid-sentence. Never use an em dash, en dash, or double hyphen. Reply with ONLY the rewritten message ' +
+            'text, nothing else, no quotation marks around it, no preamble.\n\n' +
+            'Original (' + body.length + ' characters, too long):\n' + body
+        }]
+      }),
+    });
+    const data = await r.json();
+    if (r.ok) {
+      const text = (data.content || []).filter((b) => b && b.type === 'text').map((b) => b.text).join('').trim();
+      if (text) return humanizeText(text).length <= 300 ? humanizeText(text) : truncateToLimit(humanizeText(text), 300);
+    }
+  } catch (e) { /* fall through to the deterministic backstop below */ }
+  return truncateToLimit(body, 300);
+}
+
+// Last-resort backstop only — prefers ending on a complete sentence within
+// the limit so even this fallback reads as a finished thought rather than a
+// fragment; only cuts mid-sentence at a word boundary if no sentence break
+// exists early enough to leave a usable message, and marks it with an
+// ellipsis when it does so nothing pretends to be complete when it isn't.
 function truncateToLimit(s, limit) {
   if (!s || typeof s !== 'string' || s.length <= limit) return s;
   const cut = s.slice(0, limit);
+  const lastSentenceEnd = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+  if (lastSentenceEnd > limit * 0.4) {
+    return cut.slice(0, lastSentenceEnd + 1).trim();
+  }
   const lastSpace = cut.lastIndexOf(' ');
   const trimmed = lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut;
-  return trimmed.replace(/[\s,;:\-–—]+$/, '').trim();
+  return trimmed.replace(/[\s,;:\-–—]+$/, '').trim() + '…';
 }
 
 // Backstop for the em-dash/AI-tell instructions above — the model mostly
@@ -383,15 +430,12 @@ function humanizeText(s) {
     .trim();
 }
 
-function humanizeOutput(type, data, opts) {
-  opts = opts || {};
+function humanizeOutput(type, data) {
   if (type === 'email') {
     return { subject: humanizeText(data.subject), body: humanizeText(data.body) };
   }
   if (type === 'linkedin') {
-    let body = humanizeText(data.body);
-    if (opts.isConnectionNote) body = truncateToLimit(body, 300);
-    return { body: body };
+    return { body: humanizeText(data.body) };
   }
   if (type === 'callscript') {
     return {
