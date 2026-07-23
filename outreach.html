@@ -332,6 +332,19 @@ body::after {
 .battlecard-talk::before { content: '"'; font-style: normal; color: var(--accent); font-weight: 700; margin-right: 2px; }
 .battlecard-talk::after { content: '"'; font-style: normal; color: var(--accent); font-weight: 700; margin-left: 2px; }
 .battlecard-empty { font-size: 12.5px; color: var(--text-tertiary); font-style: italic; padding: 8px 2px; }
+
+/* ===== Detected current vendor (from research) ===== */
+.vendor-alert {
+  background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.24);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+}
+.vendor-alert-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vendor-alert-icon { font-size: 15px; flex-shrink: 0; }
+.vendor-alert-text { font-size: 13.5px; color: var(--text-primary); flex: 1; min-width: 140px; }
+.vendor-alert-text b { color: var(--accent); }
+.vendor-alert-evidence { font-size: 11.5px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.5; }
+.vendor-alert-evidence a { color: var(--accent); text-decoration: none; }
+.vendor-alert-evidence a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -488,7 +501,7 @@ body::after {
   // contacts + touchpoints below are unaffected; this only removed the
   // auto-suggestion step.
   async function runResearch(name, context) {
-    const research = { summary: '', segment: '', useCases: [], recentNews: [], sources: [], researchedAt: Date.now() };
+    const research = { summary: '', segment: '', useCases: [], recentNews: [], sources: [], currentVendor: '', vendorEvidence: '', vendorSourceUrl: '', researchedAt: Date.now() };
     const errors = [];
     try {
       const data = await callApi('/api/company-research', { name: name, context: context });
@@ -497,6 +510,9 @@ body::after {
       research.useCases = Array.isArray(data.useCases) ? data.useCases : [];
       research.recentNews = Array.isArray(data.recentNews) ? data.recentNews : [];
       research.sources = Array.isArray(data.sources) ? data.sources : [];
+      research.currentVendor = data.currentVendor || '';
+      research.vendorEvidence = data.vendorEvidence || '';
+      research.vendorSourceUrl = data.vendorSourceUrl || '';
     } catch (e) {
       errors.push('company research — ' + (e && e.message ? e.message : 'failed'));
     }
@@ -869,6 +885,75 @@ body::after {
   $('profileBg').addEventListener('click', (e) => { if (e.target === $('profileBg')) closeModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openId) closeModal(); });
 
+  // Jumps from a company's research (a detected current vendor) straight to
+  // that vendor's battle card: closes the modal, filters the battle card
+  // search down to just that competitor, expands it, and scrolls to it.
+  // BATTLECARDS is declared further down this same script but this function
+  // only ever RUNS on a later click, by which point the whole script (and
+  // that const) has already executed once — same reasoning as the
+  // ORD_FROM_META/plaid hoisting notes elsewhere in this app, just without
+  // needing to actually hoist anything since nothing here runs at parse time.
+  function findKnownBattlecard(vendorName) {
+    const target = String(vendorName || '').trim().toLowerCase();
+    if (!target || typeof BATTLECARDS === 'undefined') return null;
+    return BATTLECARDS.find((bc) => bc.name.toLowerCase() === target) || null;
+  }
+  function jumpToBattlecard(vendorName) {
+    closeModal();
+    const searchEl = $('bcSearch');
+    if (searchEl) searchEl.value = vendorName;
+    if (typeof renderBattlecards === 'function') renderBattlecards(vendorName);
+    setTimeout(() => {
+      const grid = $('battlecardGrid');
+      if (!grid) return;
+      const card = grid.querySelector('.battlecard');
+      if (card) card.classList.add('open');
+      grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+  function buildVendorAlert(research) {
+    const box = document.createElement('div');
+    box.className = 'vendor-alert';
+    const head = document.createElement('div');
+    head.className = 'vendor-alert-head';
+    const icon = document.createElement('span');
+    icon.className = 'vendor-alert-icon';
+    icon.textContent = '🎯';
+    const text = document.createElement('span');
+    text.className = 'vendor-alert-text';
+    text.appendChild(document.createTextNode('Currently appears to use '));
+    const vendorB = document.createElement('b');
+    vendorB.textContent = research.currentVendor;
+    text.appendChild(vendorB);
+    head.append(icon, text);
+    const known = findKnownBattlecard(research.currentVendor);
+    if (known) {
+      const btn = document.createElement('button');
+      btn.className = 'mini-btn';
+      btn.type = 'button';
+      btn.textContent = '⚔️ View battle card';
+      btn.addEventListener('click', () => jumpToBattlecard(known.name));
+      head.appendChild(btn);
+    }
+    box.appendChild(head);
+    if (research.vendorEvidence) {
+      const ev = document.createElement('div');
+      ev.className = 'vendor-alert-evidence';
+      ev.textContent = research.vendorEvidence;
+      if (research.vendorSourceUrl) {
+        ev.appendChild(document.createTextNode(' '));
+        const a = document.createElement('a');
+        a.href = research.vendorSourceUrl;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = 'source ↗';
+        ev.appendChild(a);
+      }
+      box.appendChild(ev);
+    }
+    return box;
+  }
+
   function renderModal(id) {
     const items = load();
     const c = items[findById(items, id)];
@@ -919,6 +1004,9 @@ body::after {
         segBadge.style.display = 'inline-block';
         segBadge.textContent = seg === 'enterprise' ? 'ENTERPRISE — reference 360' : 'MID-MARKET — reference Assure';
         research.appendChild(segBadge);
+      }
+      if (c.research.currentVendor && String(c.research.currentVendor).trim()) {
+        research.appendChild(buildVendorAlert(c.research));
       }
       const summary = document.createElement('div');
       summary.className = 'research-summary';

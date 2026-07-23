@@ -4,7 +4,10 @@
 // Outreach CRM's company-research helper — uses Claude's server-side
 // web search tool to research a prospect company for a BDR at Evotix.
 // ANTHROPIC_API_KEY stays server-side only (never sent to the browser).
-// Returns { summary, segment, useCases: [...], recentNews: [{headline, note}], sources: [...] }.
+// Returns { summary, segment, useCases: [...], recentNews: [{headline, note}], sources: [...],
+//           currentVendor, vendorEvidence, vendorSourceUrl } — the vendor fields flag public
+// evidence (case studies, customer logos, reviews) that the prospect already uses a known
+// competitor, so the rep can jump straight to that competitor's battle card in outreach.html.
 // ============================================================
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -62,9 +65,20 @@ export default async function handler(req, res) {
     'Only include real items found via search; do not invent news. For EACH item, include the actual publish date you ' +
     'found (a specific date if you have it, otherwise at least "Month Year") — do not guess or estimate a date, and ' +
     'if you truly cannot confirm one, use "date unknown" rather than making one up. If nothing recent turns up, ' +
-    'return an empty array.\n\n' +
+    'return an empty array.\n' +
+    '5. Search specifically for public evidence of what EHS/safety software this company uses TODAY. Check things ' +
+    'like: a case study or customer-story page on a competitor vendor\'s own website naming this company; a customer ' +
+    'logo wall; a press release or partner announcement; a G2/Capterra review attributed to someone at this company; ' +
+    'a job posting listing a specific tool as required/preferred experience; LinkedIn posts or news mentioning the ' +
+    'tool. Known competitor vendors to check for by exact name: Intelex, Cority, Enablon, VelocityEHS, Sphera, ' +
+    'Benchmark Gensuite, Ideagen, SafetyCulture (iAuditor), EcoOnline, HSI Donesafe, EHS Insight. If you find solid ' +
+    'evidence pointing to one of those, return that EXACT name string. If you find solid evidence of a DIFFERENT EHS ' +
+    'tool not in that list, return that tool\'s real name instead of forcing it into the list. If you find no real ' +
+    'evidence either way, return null for currentVendor — never guess or infer a vendor purely from company size, ' +
+    'industry, or region with no actual supporting source.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
-    '{"summary":"...","segment":"mid-market|enterprise|unclear","useCases":["...","..."],"recentNews":[{"headline":"...","date":"YYYY-MM-DD or Month Year or date unknown","note":"why this matters for outreach"}],"sources":["url1","url2"]}\n\n' +
+    '{"summary":"...","segment":"mid-market|enterprise|unclear","useCases":["...","..."],"recentNews":[{"headline":"...","date":"YYYY-MM-DD or Month Year or date unknown","note":"why this matters for outreach"}],"sources":["url1","url2"],' +
+    '"currentVendor":"exact name from the list above, another real tool name, or null","vendorEvidence":"one sentence on what you found and where, or null","vendorSourceUrl":"the specific URL the evidence came from, or null"}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
     'sentence before or after it.';
 
