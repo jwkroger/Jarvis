@@ -285,7 +285,15 @@ body::after {
 }
 
 /* ===== Competitor battle cards ===== */
-.battlecard-search { margin-bottom: 12px; }
+.battlecard-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.battlecard-search { margin-bottom: 0; flex: 2 1 200px; }
+.battlecard-role-select { flex: 1 1 160px; min-width: 150px; cursor: pointer; }
+.battlecard-frame {
+  font-size: 12px; color: var(--text-tertiary); line-height: 1.55;
+  background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.10);
+  border-radius: 10px; padding: 9px 11px; margin-bottom: 10px;
+}
+.battlecard-frame b { color: var(--text-secondary); }
 .battlecard-grid { display: flex; flex-direction: column; gap: 10px; }
 .battlecard {
   background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);
@@ -371,7 +379,18 @@ body::after {
 
   <div class="section">
     <div class="section-title">Competitor Battle Cards</div>
-    <input class="gm-input battlecard-search" id="bcSearch" type="text" placeholder="🔍 Filter by competitor name…" autocomplete="off">
+    <div class="battlecard-controls">
+      <input class="gm-input battlecard-search" id="bcSearch" type="text" placeholder="🔍 Filter by competitor name…" autocomplete="off">
+      <select class="gm-input battlecard-role-select" id="bcRoleSelect">
+        <option value="">Who are you talking to? (all roles)</option>
+        <option value="coordinator">Coordinator</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="manager">Manager</option>
+        <option value="director">Director</option>
+        <option value="vp">VP</option>
+        <option value="exec">Executive / C-Suite</option>
+      </select>
+    </div>
     <div class="battlecard-grid" id="battlecardGrid"></div>
   </div>
 
@@ -1881,6 +1900,46 @@ body::after {
     }
   ];
 
+  // Granular titles a rep actually hears on a call, each mapped to one of the
+  // three underlying talk tiers authored per competitor (manager/director/exec
+  // — the same tiers roleAngle() in api/outreach-content.js already buckets
+  // titles into). The "frame" line is reusable seniority-level guidance, not
+  // competitor-specific, so it only needs authoring once per role here rather
+  // than once per competitor.
+  const ROLE_TIERS = {
+    coordinator: {
+      tier: 'manager',
+      label: 'Coordinator',
+      frame: 'Usually the person actually entering data and running day-to-day logistics in the current tool — frame around how much manual work, duplicate entry, or chasing paperwork it creates for them personally, not program-level strategy.'
+    },
+    supervisor: {
+      tier: 'manager',
+      label: 'Supervisor',
+      frame: 'Owns a crew or site day-to-day — frame around how easy (or not) the current tool is for their team to actually use in the field, and how much of their day gets eaten by admin instead of managing people.'
+    },
+    manager: {
+      tier: 'manager',
+      label: 'Manager',
+      frame: 'Frame around reducing their day-to-day administrative burden — incident reporting, audit prep, inspections, paperwork — and making their field team\'s job easier. This is the person doing the work, not setting strategy.'
+    },
+    director: {
+      tier: 'director',
+      label: 'Director',
+      frame: 'Frame around program-wide risk/compliance outcomes and how this makes their team more effective and audit-ready — lighter on operational detail than a manager conversation, less pure strategy than a VP/exec one.'
+    },
+    vp: {
+      tier: 'exec',
+      label: 'VP',
+      frame: 'Frame around organizational risk exposure and liability, the cost of incidents/non-compliance at scale, and ROI — not day-to-day tool mechanics. They think in risk reduction and budget, not workflows.'
+    },
+    exec: {
+      tier: 'exec',
+      label: 'Executive / C-Suite',
+      frame: 'Frame around board- and audit-level visibility, organizational risk exposure, and the bottom-line cost of getting this wrong — pure strategy and accountability, not operational detail.'
+    }
+  };
+  let selectedBcRole = '';
+
   function buildBattlecard(bc) {
     const el = document.createElement('div');
     el.className = 'battlecard';
@@ -1948,8 +2007,32 @@ body::after {
     const ROLE_ORDER = ['manager', 'director', 'exec'];
     const talksByRole = (bc.talks && !Array.isArray(bc.talks)) ? bc.talks : {};
     const legacyTalks = Array.isArray(bc.talks) ? bc.talks : (bc.talk ? [bc.talk] : []);
-    const presentRoles = ROLE_ORDER.filter((r) => talksByRole[r]);
-    if (presentRoles.length) {
+    const roleConfig = selectedBcRole ? ROLE_TIERS[selectedBcRole] : null;
+    const tierForSelection = roleConfig && talksByRole[roleConfig.tier] ? roleConfig.tier : null;
+
+    if (tierForSelection) {
+      // A specific role is picked in the dropdown above — narrow to just that
+      // one talk track and show the seniority-level framing hint with it.
+      const talkSub = document.createElement('div');
+      talkSub.className = 'battlecard-sub';
+      const talkH = document.createElement('div');
+      talkH.className = 'battlecard-sub-h talk';
+      talkH.textContent = 'Ask for a ' + roleConfig.label;
+      talkSub.appendChild(talkH);
+      const frame = document.createElement('div');
+      frame.className = 'battlecard-frame';
+      frame.innerHTML = '<b>How to frame it:</b> ' + roleConfig.frame;
+      talkSub.appendChild(frame);
+      const roleLabel = document.createElement('div');
+      roleLabel.className = 'battlecard-talk-role';
+      roleLabel.textContent = ROLE_LABELS[tierForSelection];
+      const talkBox = document.createElement('div');
+      talkBox.className = 'battlecard-talk';
+      talkBox.textContent = talksByRole[tierForSelection];
+      talkSub.append(roleLabel, talkBox);
+      body.appendChild(talkSub);
+    } else if (ROLE_ORDER.filter((r) => talksByRole[r]).length) {
+      const presentRoles = ROLE_ORDER.filter((r) => talksByRole[r]);
       const talkSub = document.createElement('div');
       talkSub.className = 'battlecard-sub';
       const talkH = document.createElement('div');
@@ -2003,6 +2086,13 @@ body::after {
   }
   const bcSearchEl = $('bcSearch');
   if (bcSearchEl) bcSearchEl.addEventListener('input', () => renderBattlecards(bcSearchEl.value));
+  const bcRoleSelectEl = $('bcRoleSelect');
+  if (bcRoleSelectEl) {
+    bcRoleSelectEl.addEventListener('change', () => {
+      selectedBcRole = bcRoleSelectEl.value;
+      renderBattlecards(bcSearchEl ? bcSearchEl.value : '');
+    });
+  }
 
   /* ---------- boot ---------- */
   renderLists();
