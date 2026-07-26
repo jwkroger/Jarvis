@@ -135,8 +135,7 @@ function buildFindPrompt(criteria, excludeNames, todayStr) {
   const excludeBlock = (Array.isArray(excludeNames) && excludeNames.length)
     ? ('Already in the rep\'s pipeline — do NOT suggest any of these again: ' + excludeNames.join('; ') + '\n\n')
     : '';
-  return
-    'Today\'s actual date is ' + todayStr + '.\n\n' +
+  return 'Today\'s actual date is ' + todayStr + '.\n\n' +
     'You are helping a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) software company, ' +
     'find NEW prospect companies using web search.\n\n' +
     'Criteria from the rep: ' + String(criteria).trim() + '\n\n' +
