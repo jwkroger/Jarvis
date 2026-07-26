@@ -119,6 +119,16 @@ body::after {
 .gm-add:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
 .gm-status { font-size: 11.5px; color: var(--text-tertiary); min-height: 16px; margin-top: 8px; }
 
+.lead-results { list-style: none; margin: 0; padding: 0; }
+.lead-result {
+  display: flex; align-items: center; gap: 12px; padding: 11px 12px; margin-top: 8px;
+  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+}
+.lead-result-main { flex: 1; min-width: 0; }
+.lead-result-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.lead-result-reason { font-size: 12px; color: var(--text-tertiary); margin-top: 3px; line-height: 1.45; }
+.lead-result-add { flex-shrink: 0; }
+
 .company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .empty-state { text-align: center; font-size: 12px; font-style: italic; color: var(--text-tertiary); padding: 20px 0; }
 
@@ -378,6 +388,18 @@ body::after {
   </div>
 
   <div class="section">
+    <div class="section-title">Find Leads</div>
+    <div class="gm-card">
+      <div class="gm-input-wrap">
+        <input class="gm-input" id="flCriteria" type="text" placeholder="Describe who you're looking for — e.g. &quot;manufacturing companies in Ohio, 500-2000 employees&quot;" autocomplete="off" style="flex:1 1 100%">
+        <button class="gm-add" id="flSearch" type="button">🔍 Find Companies</button>
+      </div>
+      <div class="gm-status" id="flStatus"></div>
+      <ul class="lead-results" id="flResults"></ul>
+    </div>
+  </div>
+
+  <div class="section">
     <div class="section-title">Competitor Battle Cards</div>
     <div class="battlecard-controls">
       <input class="gm-input battlecard-search" id="bcSearch" type="text" placeholder="🔍 Filter by competitor name…" autocomplete="off">
@@ -581,6 +603,64 @@ body::after {
   }
   $('cAdd').addEventListener('click', addCompany);
   [$('cName'), $('cContext')].forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCompany(); }));
+
+  /* ---------- find leads ---------- */
+  // Deliberately shallow — company names + a one-line reason, no per-company
+  // verification. A prior attempt at auto-suggesting actual CONTACTS (named
+  // people, not just companies) regularly 504'd on Vercel because verifying
+  // one specific person takes many more search rounds than this does; this
+  // stays scoped to what a single company-research call already handles
+  // reliably. Picking "Add" here just fills the existing Add Company flow
+  // above and reuses its proven single-company research path.
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  async function findLeads() {
+    const criteriaEl = $('flCriteria');
+    const statusEl = $('flStatus');
+    const searchBtn = $('flSearch');
+    const resultsEl = $('flResults');
+    const criteria = criteriaEl.value.trim();
+    if (!criteria) return;
+
+    searchBtn.disabled = true;
+    statusEl.textContent = 'Searching…';
+    resultsEl.innerHTML = '';
+
+    const excludeNames = load().map((c) => c.name);
+    try {
+      const data = await callApi('/api/company-research', { type: 'find', criteria: criteria, excludeNames: excludeNames });
+      const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+      statusEl.textContent = candidates.length ? '' : 'No matches found — try broadening the criteria.';
+      candidates.forEach((cand) => {
+        if (!cand || !cand.name) return;
+        const li = document.createElement('li');
+        li.className = 'lead-result';
+        const main = document.createElement('div');
+        main.className = 'lead-result-main';
+        main.innerHTML = '<div class="lead-result-name">' + escapeHtml(cand.name) + '</div>' +
+          '<div class="lead-result-reason">' + escapeHtml(cand.reason || '') + '</div>';
+        const addBtn = document.createElement('button');
+        addBtn.className = 'gm-add lead-result-add';
+        addBtn.type = 'button';
+        addBtn.textContent = '+ Add';
+        addBtn.addEventListener('click', async () => {
+          addBtn.disabled = true;
+          addBtn.textContent = 'Adding…';
+          $('cName').value = cand.name;
+          $('cContext').value = cand.reason || '';
+          await addCompany();
+          li.remove();
+        });
+        li.append(main, addBtn);
+        resultsEl.appendChild(li);
+      });
+    } catch (e) {
+      statusEl.textContent = 'Search failed: ' + (e && e.message ? e.message : 'try again');
+    } finally {
+      searchBtn.disabled = false;
+    }
+  }
+  $('flSearch').addEventListener('click', findLeads);
+  $('flCriteria').addEventListener('keydown', (e) => { if (e.key === 'Enter') findLeads(); });
 
   /* ---------- re-research ---------- */
   async function reResearch(id, btnEl) {

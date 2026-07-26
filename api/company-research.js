@@ -1,6 +1,7 @@
 // ============================================================
 // POST /api/company-research
-// Body: { name: 'Acme Manufacturing', context: '...' }
+// Body: { name: 'Acme Manufacturing', context: '...' }                 (default: single-company research)
+//     or { type: 'find', criteria: '...', excludeNames: [...] }        (new: bulk lead discovery)
 // Outreach CRM's company-research helper — uses Claude's server-side
 // web search tool to research a prospect company for a BDR at Evotix.
 // ANTHROPIC_API_KEY stays server-side only (never sent to the browser).
@@ -8,6 +9,15 @@
 //           currentVendor, vendorEvidence, vendorSourceUrl } — the vendor fields flag public
 // evidence (case studies, customer logos, reviews) that the prospect already uses a known
 // competitor, so the rep can jump straight to that competitor's battle card in outreach.html.
+//
+// The 'find' mode is a SEPARATE, narrower request shape living in this same file rather than
+// a new one — Vercel's Hobby plan caps a deployment at 12 functions, and this project is
+// already at that cap, so a 13th file would break every deploy (same reason the old
+// "suggested contacts" feature was merged in here before it was removed entirely). 'find'
+// deliberately stays shallow (company names + a one-line reason, no per-company verification,
+// max_uses capped on the search tool) — the old contacts feature 504'd because verifying a
+// specific named PERSON at a company takes many more search rounds than this does; scope here
+// is kept close to the single-company path's search cost on purpose.
 // ============================================================
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -19,7 +29,23 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { name, context } = req.body || {};
+  const { type, name, context, criteria, excludeNames } = req.body || {};
+
+  if (type === 'find') {
+    if (!criteria || !String(criteria).trim()) return res.status(400).json({ error: 'criteria required' });
+    const todayStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    try {
+      const content = await callClaudeWithSearch(apiKey, buildFindPrompt(criteria, excludeNames, todayStr), 1200, 4);
+      const jsonStr = extractLastJson(content);
+      let data;
+      try { data = JSON.parse(jsonStr); } catch (e) { throw new Error('could not parse the candidate list from the model'); }
+      if (!Array.isArray(data.candidates)) data.candidates = [];
+      return res.status(200).json(data);
+    } catch (e) {
+      return res.status(500).json({ error: 'lead search failed: ' + (e && e.message ? e.message : String(e)) });
+    }
+  }
+
   if (!name || !String(name).trim()) return res.status(400).json({ error: 'company name required' });
 
   // Search results and the model's training data both skew stale, and a rep
@@ -93,6 +119,31 @@ export default async function handler(req, res) {
   }
 }
 
+// Real, named companies matching loose criteria — a broad discovery pass,
+// NOT the per-company deep dive above. Deliberately asks for less (no
+// employee-count verification, no per-candidate sourcing) so the natural
+// number of search rounds stays low; max_uses on the tool is a hard backstop
+// on top of that, not the primary defense.
+function buildFindPrompt(criteria, excludeNames, todayStr) {
+  const excludeBlock = (Array.isArray(excludeNames) && excludeNames.length)
+    ? ('Already in the rep\'s pipeline — do NOT suggest any of these again: ' + excludeNames.join('; ') + '\n\n')
+    : '';
+  return
+    'Today\'s actual date is ' + todayStr + '.\n\n' +
+    'You are helping a BDR at Evotix, an EHS&S (Environmental, Health, Safety & Sustainability) software company, ' +
+    'find NEW prospect companies using web search.\n\n' +
+    'Criteria from the rep: ' + String(criteria).trim() + '\n\n' +
+    excludeBlock +
+    'Find 5-8 REAL, named companies that plausibly match this criteria. This is a first-pass discovery list, not a ' +
+    'deep dive — do not try to verify exact employee counts or confirm every detail with certainty; a company that ' +
+    'plausibly fits based on what you find is good enough here (the rep runs full research on whichever ones they ' +
+    'pick next, using the existing "Research & Add" flow). For EACH company, give a one-sentence reason grounded in ' +
+    'something you actually found (industry, approximate size, a location, a relevant news item) — not generic ' +
+    'filler. If you can\'t find enough real companies that plausibly match, return fewer rather than padding the ' +
+    'list with weak guesses.\n\n' +
+    'Return ONLY JSON, no preamble, no markdown fences: {"candidates":[{"name":"...","reason":"..."}]}';
+}
+
 // Claude may narrate its search process in earlier text blocks (or, rarely,
 // wrap the final JSON in a stray sentence). Take only the LAST text block —
 // the actual final answer — and slice out the {...} substring from it so a
@@ -107,8 +158,10 @@ function extractLastJson(content) {
   return raw.slice(start, end + 1);
 }
 
-async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
+async function callClaudeWithSearch(apiKey, prompt, maxTokens, maxUses) {
   const messages = [{ role: 'user', content: prompt }];
+  const searchTool = { type: 'web_search_20260209', name: 'web_search' };
+  if (maxUses) searchTool.max_uses = maxUses;
   let attempts = 0;
   while (attempts < 4) {
     attempts++;
@@ -122,7 +175,7 @@ async function callClaudeWithSearch(apiKey, prompt, maxTokens) {
       body: JSON.stringify({
         model: 'claude-opus-4-8',
         max_tokens: maxTokens,
-        tools: [{ type: 'web_search_20260209', name: 'web_search' }],
+        tools: [searchTool],
         messages: messages,
       }),
     });
