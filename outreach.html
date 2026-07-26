@@ -119,22 +119,6 @@ body::after {
 .gm-add:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
 .gm-status { font-size: 11.5px; color: var(--text-tertiary); min-height: 16px; margin-top: 8px; }
 
-.lead-vertical-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.lead-vertical-btn { flex: 1 1 200px; white-space: normal; line-height: 1.3; }
-.lead-results { list-style: none; margin: 0; padding: 0; }
-.lead-result {
-  display: flex; align-items: center; gap: 12px; padding: 11px 12px; margin-top: 8px;
-  background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
-}
-.lead-result-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lead-result-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-.lead-result-event {
-  font-size: 11.5px; color: #F2C063; background: rgba(242,192,99,0.12);
-  border: 1px solid rgba(242,192,99,0.28); border-radius: 999px;
-  padding: 3px 10px; line-height: 1.4;
-}
-.lead-result-add { flex-shrink: 0; }
-
 .company-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .empty-state { text-align: center; font-size: 12px; font-style: italic; color: var(--text-tertiary); padding: 20px 0; }
 
@@ -401,19 +385,6 @@ body::after {
   </div>
 
   <div class="section">
-    <div class="section-title">Find Leads</div>
-    <div class="gm-card">
-      <div class="lead-vertical-row">
-        <button class="gm-add lead-vertical-btn" id="flOilGas" type="button">🛢️ Oil &amp; Gas</button>
-        <button class="gm-add lead-vertical-btn" id="flEnergyUtilities" type="button">⚡ Energy, Utilities &amp; Waste</button>
-        <button class="gm-add lead-vertical-btn" id="flConstruction" type="button">🏗️ Construction, Manufacturing &amp; Building Materials</button>
-      </div>
-      <div class="gm-status" id="flStatus"></div>
-      <ul class="lead-results" id="flResults"></ul>
-    </div>
-  </div>
-
-  <div class="section">
     <div class="section-title">Competitor Battle Cards</div>
     <div class="battlecard-controls">
       <input class="gm-input battlecard-search" id="bcSearch" type="text" placeholder="🔍 Filter by competitor name…" autocomplete="off">
@@ -618,130 +589,6 @@ body::after {
   }
   $('cAdd').addEventListener('click', addCompany);
   [$('cName'), $('cContext')].forEach((el) => el.addEventListener('keydown', (e) => { if (e.key === 'Enter') addCompany(); }));
-
-  /* ---------- find leads ---------- */
-  // Deliberately shallow — company names + a one-line reason, no per-company
-  // verification. A prior attempt at auto-suggesting actual CONTACTS (named
-  // people, not just companies) regularly 504'd on Vercel because verifying
-  // one specific person takes many more search rounds than this does; this
-  // stays scoped to what a single company-research call already handles
-  // reliably. Picking "Add" here just fills the existing Add Company flow
-  // above and reuses its proven single-company research path.
-  //
-  // Fixed to the 3 verticals actually being worked, each searched at the
-  // same segment (mid-market/enterprise, ~2,000-5,000+ employees) with a
-  // required "why now" — a real recent trigger event — rather than a free-
-  // text box, since a generic industry+size match without a timing reason
-  // isn't actually a better lead than one already in the pipeline.
-  //
-  // One request asking for "5-8 companies, run several searches for
-  // different trigger types" 504'd — enough search rounds to actually find
-  // triggered companies takes longer than a single Vercel invocation can
-  // afford. Splitting into 3 SMALLER PARALLEL requests, one per trigger
-  // angle, fixes this: each request only needs a couple of searches (short,
-  // safely under the timeout), and since they run in parallel the user's
-  // total wait is bounded by the slowest one, not the sum of all three.
-  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
-  // The excludeNames sent to the model is only a prompt instruction, not a
-  // guarantee — it can still ignore it or return a near-match (e.g. "Acme
-  // Corp" vs "Acme Corporation"). This is the deterministic backstop: strip
-  // common suffixes/punctuation and compare case-insensitively so a result
-  // already in the pipeline never actually renders, regardless of what the
-  // model did.
-  function normalizeCompanyName(s) {
-    return String(s || '')
-      .toLowerCase()
-      .replace(/[.,]/g, '')
-      .replace(/\b(inc|incorporated|llc|l l c|corp|corporation|co|company|ltd|limited|plc|group|holdings)\b/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-  const LEAD_VERTICALS = [
-    { id: 'flOilGas', industry: 'Oil and gas' },
-    { id: 'flEnergyUtilities', industry: 'Energy, utilities, and waste management' },
-    { id: 'flConstruction', industry: 'Construction, manufacturing, and building materials' }
-  ];
-  const LEAD_ANGLES = [
-    'a recent OSHA or other regulatory citation/fine, or a recent safety incident/fatality',
-    'a recent facility expansion, new plant/site, or merger/acquisition',
-    'a recent VP/Director of Safety or EHS hire, or other new safety leadership'
-  ];
-  function angleCriteria(industryPhrase, angle) {
-    return industryPhrase + ' companies — mid-market to enterprise, roughly 2,000 to 5,000+ employees — that have had ' +
-      angle + ', within roughly the last several months, making this a good time to reach out about EHS&S software.';
-  }
-  async function findLeads(industryPhrase) {
-    const statusEl = $('flStatus');
-    const resultsEl = $('flResults');
-    if (!industryPhrase) return;
-
-    const buttons = LEAD_VERTICALS.map((v) => $(v.id)).filter(Boolean);
-    buttons.forEach((b) => { b.disabled = true; });
-    statusEl.textContent = 'Searching (3 angles in parallel)…';
-    resultsEl.innerHTML = '';
-
-    const existingNames = load().map((c) => c.name);
-    const existingNormalized = new Set(existingNames.map(normalizeCompanyName));
-    try {
-      const settled = await Promise.allSettled(
-        LEAD_ANGLES.map((angle) => callApi('/api/company-research', {
-          type: 'find', criteria: angleCriteria(industryPhrase, angle), excludeNames: existingNames
-        }))
-      );
-      const rawCandidates = [];
-      let failedAngles = 0;
-      settled.forEach((r) => {
-        if (r.status === 'fulfilled' && Array.isArray(r.value.candidates)) rawCandidates.push(...r.value.candidates);
-        else failedAngles++;
-      });
-      // Dedupe against the existing pipeline AND across the 3 angle results
-      // (more than one angle can surface the same company) — see
-      // normalizeCompanyName above for why this can't just trust the model.
-      const seen = new Set();
-      const candidates = [];
-      rawCandidates.forEach((cand) => {
-        if (!cand || !cand.name) return;
-        const norm = normalizeCompanyName(cand.name);
-        if (existingNormalized.has(norm) || seen.has(norm)) return;
-        seen.add(norm);
-        candidates.push(cand);
-      });
-      const parts = [];
-      if (!candidates.length) parts.push('No new matches with a real recent trigger — try again shortly, or another vertical.');
-      if (failedAngles) parts.push(failedAngles + ' of 3 searches timed out — try again for a fuller list.');
-      statusEl.textContent = parts.join(' ');
-      candidates.forEach((cand) => {
-        const li = document.createElement('li');
-        li.className = 'lead-result';
-        const main = document.createElement('div');
-        main.className = 'lead-result-main';
-        main.innerHTML = '<span class="lead-result-name">' + escapeHtml(cand.name) + '</span>' +
-          (cand.reason ? ('<span class="lead-result-event">⚡ ' + escapeHtml(cand.reason) + '</span>') : '');
-        const addBtn = document.createElement('button');
-        addBtn.className = 'gm-add lead-result-add';
-        addBtn.type = 'button';
-        addBtn.textContent = '+ Add';
-        addBtn.addEventListener('click', async () => {
-          addBtn.disabled = true;
-          addBtn.textContent = 'Adding…';
-          $('cName').value = cand.name;
-          $('cContext').value = cand.reason || '';
-          await addCompany();
-          li.remove();
-        });
-        li.append(main, addBtn);
-        resultsEl.appendChild(li);
-      });
-    } catch (e) {
-      statusEl.textContent = 'Search failed: ' + (e && e.message ? e.message : 'try again');
-    } finally {
-      buttons.forEach((b) => { b.disabled = false; });
-    }
-  }
-  LEAD_VERTICALS.forEach((v) => {
-    const btn = $(v.id);
-    if (btn) btn.addEventListener('click', () => findLeads(v.industry));
-  });
 
   /* ---------- re-research ---------- */
   async function reResearch(id, btnEl) {
