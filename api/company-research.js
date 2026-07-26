@@ -101,10 +101,17 @@ export default async function handler(req, res) {
     'evidence pointing to one of those, return that EXACT name string. If you find solid evidence of a DIFFERENT EHS ' +
     'tool not in that list, return that tool\'s real name instead of forcing it into the list. If you find no real ' +
     'evidence either way, return null for currentVendor — never guess or infer a vendor purely from company size, ' +
-    'industry, or region with no actual supporting source.\n\n' +
+    'industry, or region with no actual supporting source.\n' +
+    '6. Separately, check whether any of the news you found (or anything else you come across) is specifically a ' +
+    '"why now" trigger for reaching out about EHS&S software — a safety incident or fatality, an OSHA or other ' +
+    'regulatory citation/fine, a new facility or expansion, a merger or acquisition, or a new VP/Director of Safety ' +
+    'or EHS hire. This is optional and does not require additional searching beyond what you already did for #4/#5 — ' +
+    'if one of those news items IS a trigger like this, say so; if nothing you found qualifies, return null. Never ' +
+    'invent or stretch a weak item into a trigger just to fill the field.\n\n' +
     'Return ONLY JSON in this exact shape, no preamble, no markdown fences:\n' +
     '{"summary":"...","segment":"mid-market|enterprise|unclear","useCases":["...","..."],"recentNews":[{"headline":"...","date":"YYYY-MM-DD or Month Year or date unknown","note":"why this matters for outreach"}],"sources":["url1","url2"],' +
-    '"currentVendor":"exact name from the list above, another real tool name, or null","vendorEvidence":"one sentence on what you found and where, or null","vendorSourceUrl":"the specific URL the evidence came from, or null"}\n\n' +
+    '"currentVendor":"exact name from the list above, another real tool name, or null","vendorEvidence":"one sentence on what you found and where, or null","vendorSourceUrl":"the specific URL the evidence came from, or null",' +
+    '"triggerEvent":"one sentence naming the specific event and why it\'s good timing, or null"}\n\n' +
     'Your final message must contain nothing but that JSON object — no narration of your search process, no summary ' +
     'sentence before or after it.';
 

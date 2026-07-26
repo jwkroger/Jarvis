@@ -364,6 +364,13 @@ body::after {
 .vendor-alert-text b { color: var(--accent); }
 .vendor-alert-evidence { font-size: 11.5px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.5; }
 .vendor-alert-evidence a { color: var(--accent); text-decoration: none; }
+.trigger-alert {
+  background: rgba(242,192,99,0.08); border: 1px solid rgba(242,192,99,0.28);
+  border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.trigger-alert-icon { font-size: 15px; flex-shrink: 0; }
+.trigger-alert-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
 .vendor-alert-evidence a:hover { text-decoration: underline; }
 </style>
 </head>
@@ -545,7 +552,7 @@ body::after {
   // contacts + touchpoints below are unaffected; this only removed the
   // auto-suggestion step.
   async function runResearch(name, context) {
-    const research = { summary: '', segment: '', useCases: [], recentNews: [], sources: [], currentVendor: '', vendorEvidence: '', vendorSourceUrl: '', researchedAt: Date.now() };
+    const research = { summary: '', segment: '', useCases: [], recentNews: [], sources: [], currentVendor: '', vendorEvidence: '', vendorSourceUrl: '', triggerEvent: '', researchedAt: Date.now() };
     const errors = [];
     try {
       const data = await callApi('/api/company-research', { name: name, context: context });
@@ -557,6 +564,7 @@ body::after {
       research.currentVendor = data.currentVendor || '';
       research.vendorEvidence = data.vendorEvidence || '';
       research.vendorSourceUrl = data.vendorSourceUrl || '';
+      research.triggerEvent = (data.triggerEvent && String(data.triggerEvent).trim().toLowerCase() !== 'null') ? String(data.triggerEvent).trim() : '';
     } catch (e) {
       errors.push('company research — ' + (e && e.message ? e.message : 'failed'));
     }
@@ -622,6 +630,20 @@ body::after {
   // text box, since a generic industry+size match without a timing reason
   // isn't actually a better lead than one already in the pipeline.
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  // The excludeNames sent to the model is only a prompt instruction, not a
+  // guarantee — it can still ignore it or return a near-match (e.g. "Acme
+  // Corp" vs "Acme Corporation"). This is the deterministic backstop: strip
+  // common suffixes/punctuation and compare case-insensitively so a result
+  // already in the pipeline never actually renders, regardless of what the
+  // model did.
+  function normalizeCompanyName(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/[.,]/g, '')
+      .replace(/\b(inc|incorporated|llc|l l c|corp|corporation|co|company|ltd|limited|plc|group|holdings)\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
   function verticalCriteria(industryPhrase) {
     return industryPhrase + ' companies — mid-market to enterprise, roughly 2,000 to 5,000+ employees — that have ' +
       'had a REAL, RECENT triggering event (within roughly the last several months) making this a good time to ' +
@@ -646,11 +668,17 @@ body::after {
     statusEl.textContent = 'Searching…';
     resultsEl.innerHTML = '';
 
-    const excludeNames = load().map((c) => c.name);
+    const existingNames = load().map((c) => c.name);
+    const existingNormalized = new Set(existingNames.map(normalizeCompanyName));
     try {
-      const data = await callApi('/api/company-research', { type: 'find', criteria: criteria, excludeNames: excludeNames });
-      const candidates = Array.isArray(data.candidates) ? data.candidates : [];
-      statusEl.textContent = candidates.length ? '' : 'No matches found with a real recent trigger — try again shortly, or another vertical.';
+      const data = await callApi('/api/company-research', { type: 'find', criteria: criteria, excludeNames: existingNames });
+      const rawCandidates = Array.isArray(data.candidates) ? data.candidates : [];
+      // Deterministic dedupe against the pipeline — see normalizeCompanyName above.
+      const candidates = rawCandidates.filter((cand) => cand && cand.name && !existingNormalized.has(normalizeCompanyName(cand.name)));
+      const dupesFiltered = rawCandidates.length - candidates.length;
+      statusEl.textContent = candidates.length
+        ? (dupesFiltered ? ('Filtered ' + dupesFiltered + ' already in your pipeline.') : '')
+        : 'No new matches with a real recent trigger — try again shortly, or another vertical.';
       candidates.forEach((cand) => {
         if (!cand || !cand.name) return;
         const li = document.createElement('li');
@@ -1076,6 +1104,19 @@ body::after {
     return box;
   }
 
+  function buildTriggerAlert(triggerEvent) {
+    const box = document.createElement('div');
+    box.className = 'trigger-alert';
+    const icon = document.createElement('span');
+    icon.className = 'trigger-alert-icon';
+    icon.textContent = '⚡';
+    const text = document.createElement('span');
+    text.className = 'trigger-alert-text';
+    text.textContent = triggerEvent;
+    box.append(icon, text);
+    return box;
+  }
+
   function renderModal(id) {
     const items = load();
     const c = items[findById(items, id)];
@@ -1129,6 +1170,9 @@ body::after {
       }
       if (c.research.currentVendor && String(c.research.currentVendor).trim()) {
         research.appendChild(buildVendorAlert(c.research));
+      }
+      if (c.research.triggerEvent && String(c.research.triggerEvent).trim()) {
+        research.appendChild(buildTriggerAlert(c.research.triggerEvent));
       }
       const summary = document.createElement('div');
       summary.className = 'research-summary';
