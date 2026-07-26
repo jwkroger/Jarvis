@@ -633,6 +633,14 @@ body::after {
   // required "why now" — a real recent trigger event — rather than a free-
   // text box, since a generic industry+size match without a timing reason
   // isn't actually a better lead than one already in the pipeline.
+  //
+  // One request asking for "5-8 companies, run several searches for
+  // different trigger types" 504'd — enough search rounds to actually find
+  // triggered companies takes longer than a single Vercel invocation can
+  // afford. Splitting into 3 SMALLER PARALLEL requests, one per trigger
+  // angle, fixes this: each request only needs a couple of searches (short,
+  // safely under the timeout), and since they run in parallel the user's
+  // total wait is bounded by the slowest one, not the sum of all three.
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   // The excludeNames sent to the model is only a prompt instruction, not a
   // guarantee — it can still ignore it or return a near-match (e.g. "Acme
@@ -648,43 +656,61 @@ body::after {
       .replace(/\s+/g, ' ')
       .trim();
   }
-  function verticalCriteria(industryPhrase) {
-    return industryPhrase + ' companies — mid-market to enterprise, roughly 2,000 to 5,000+ employees — that have ' +
-      'had a REAL, RECENT triggering event (within roughly the last several months) making this a good time to ' +
-      'reach out about EHS&S software: a safety incident or fatality, an OSHA or other regulatory citation/fine, a ' +
-      'new facility or expansion, a merger or acquisition, a new VP/Director of Safety or EHS hire, or something ' +
-      'similar. A company that just generically fits the industry and size but has no specific recent trigger is ' +
-      'NOT a good fit here — only include companies where you found an actual event, and name that event as the ' +
-      'reason.';
-  }
   const LEAD_VERTICALS = [
-    { id: 'flOilGas', criteria: verticalCriteria('Oil and gas') },
-    { id: 'flEnergyUtilities', criteria: verticalCriteria('Energy, utilities, and waste management') },
-    { id: 'flConstruction', criteria: verticalCriteria('Construction, manufacturing, and building materials') }
+    { id: 'flOilGas', industry: 'Oil and gas' },
+    { id: 'flEnergyUtilities', industry: 'Energy, utilities, and waste management' },
+    { id: 'flConstruction', industry: 'Construction, manufacturing, and building materials' }
   ];
-  async function findLeads(criteria) {
+  const LEAD_ANGLES = [
+    'a recent OSHA or other regulatory citation/fine, or a recent safety incident/fatality',
+    'a recent facility expansion, new plant/site, or merger/acquisition',
+    'a recent VP/Director of Safety or EHS hire, or other new safety leadership'
+  ];
+  function angleCriteria(industryPhrase, angle) {
+    return industryPhrase + ' companies — mid-market to enterprise, roughly 2,000 to 5,000+ employees — that have had ' +
+      angle + ', within roughly the last several months, making this a good time to reach out about EHS&S software.';
+  }
+  async function findLeads(industryPhrase) {
     const statusEl = $('flStatus');
     const resultsEl = $('flResults');
-    if (!criteria) return;
+    if (!industryPhrase) return;
 
     const buttons = LEAD_VERTICALS.map((v) => $(v.id)).filter(Boolean);
     buttons.forEach((b) => { b.disabled = true; });
-    statusEl.textContent = 'Searching…';
+    statusEl.textContent = 'Searching (3 angles in parallel)…';
     resultsEl.innerHTML = '';
 
     const existingNames = load().map((c) => c.name);
     const existingNormalized = new Set(existingNames.map(normalizeCompanyName));
     try {
-      const data = await callApi('/api/company-research', { type: 'find', criteria: criteria, excludeNames: existingNames });
-      const rawCandidates = Array.isArray(data.candidates) ? data.candidates : [];
-      // Deterministic dedupe against the pipeline — see normalizeCompanyName above.
-      const candidates = rawCandidates.filter((cand) => cand && cand.name && !existingNormalized.has(normalizeCompanyName(cand.name)));
-      const dupesFiltered = rawCandidates.length - candidates.length;
-      statusEl.textContent = candidates.length
-        ? (dupesFiltered ? ('Filtered ' + dupesFiltered + ' already in your pipeline.') : '')
-        : 'No new matches with a real recent trigger — try again shortly, or another vertical.';
-      candidates.forEach((cand) => {
+      const settled = await Promise.allSettled(
+        LEAD_ANGLES.map((angle) => callApi('/api/company-research', {
+          type: 'find', criteria: angleCriteria(industryPhrase, angle), excludeNames: existingNames
+        }))
+      );
+      const rawCandidates = [];
+      let failedAngles = 0;
+      settled.forEach((r) => {
+        if (r.status === 'fulfilled' && Array.isArray(r.value.candidates)) rawCandidates.push(...r.value.candidates);
+        else failedAngles++;
+      });
+      // Dedupe against the existing pipeline AND across the 3 angle results
+      // (more than one angle can surface the same company) — see
+      // normalizeCompanyName above for why this can't just trust the model.
+      const seen = new Set();
+      const candidates = [];
+      rawCandidates.forEach((cand) => {
         if (!cand || !cand.name) return;
+        const norm = normalizeCompanyName(cand.name);
+        if (existingNormalized.has(norm) || seen.has(norm)) return;
+        seen.add(norm);
+        candidates.push(cand);
+      });
+      const parts = [];
+      if (!candidates.length) parts.push('No new matches with a real recent trigger — try again shortly, or another vertical.');
+      if (failedAngles) parts.push(failedAngles + ' of 3 searches timed out — try again for a fuller list.');
+      statusEl.textContent = parts.join(' ');
+      candidates.forEach((cand) => {
         const li = document.createElement('li');
         li.className = 'lead-result';
         const main = document.createElement('div');
@@ -714,7 +740,7 @@ body::after {
   }
   LEAD_VERTICALS.forEach((v) => {
     const btn = $(v.id);
-    if (btn) btn.addEventListener('click', () => findLeads(v.criteria));
+    if (btn) btn.addEventListener('click', () => findLeads(v.industry));
   });
 
   /* ---------- re-research ---------- */

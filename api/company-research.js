@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     if (!criteria || !String(criteria).trim()) return res.status(400).json({ error: 'criteria required' });
     const todayStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     try {
-      const content = await callClaudeWithSearch(apiKey, buildFindPrompt(criteria, excludeNames, todayStr), 2000, 8);
+      const content = await callClaudeWithSearch(apiKey, buildFindPrompt(criteria, excludeNames, todayStr), 900, 3);
       const jsonStr = extractLastJson(content);
       let data;
       try { data = JSON.parse(jsonStr); } catch (e) { throw new Error('could not parse the candidate list from the model'); }
@@ -140,17 +140,16 @@ function buildFindPrompt(criteria, excludeNames, todayStr) {
     'find NEW prospect companies using web search.\n\n' +
     'Criteria from the rep: ' + String(criteria).trim() + '\n\n' +
     excludeBlock +
-    'Find 5-8 REAL, named companies that plausibly match this criteria AND that have a genuine, real, recent ' +
-    'triggering event. Run SEVERAL separate, differently-worded searches — e.g. one for recent OSHA/regulatory ' +
-    'citations or fines in this space, one for recent expansions/new facilities, one for recent M&A activity, one ' +
-    'for recent VP/Director of Safety or EHS hiring announcements — rather than a single generic query; different ' +
-    'searches surface different companies, and you have room for several. This is a first-pass discovery list, not ' +
-    'a deep dive — do not try to verify exact employee counts or confirm every detail with certainty; a company ' +
-    'that plausibly fits the size/industry is good enough on THAT front (the rep runs full research on whichever ' +
-    'ones they pick next, using the existing "Research & Add" flow) — but the triggering event itself must be real ' +
-    'and something you actually found, not inferred or guessed. For EACH company, give a one-sentence reason naming ' +
-    'the specific event. If after several searches you genuinely can\'t find enough companies with a real trigger, ' +
-    'return fewer rather than padding the list with weak or generic reasons.\n\n' +
+    'Find 2-4 REAL, named companies that plausibly match this criteria AND that have a genuine, real, recent ' +
+    'triggering event matching what\'s described above — this is ONE narrow angle of a larger search the rep is ' +
+    'running in parallel, so stay focused on just this angle rather than trying to cover every possible trigger ' +
+    'type. This is a first-pass discovery list, not a deep dive — do not try to verify exact employee counts or ' +
+    'confirm every detail with certainty; a company that plausibly fits the size/industry is good enough on THAT ' +
+    'front (the rep runs full research on whichever ones they pick next, using the existing "Research & Add" flow) ' +
+    '— but the triggering event itself must be real and something you actually found, not inferred or guessed. For ' +
+    'EACH company, give a one-sentence reason naming the specific event. If you genuinely can\'t find any companies ' +
+    'with a real trigger matching this angle, return an empty list rather than padding it with weak or generic ' +
+    'reasons.\n\n' +
     'Return ONLY JSON, no preamble, no markdown fences: {"candidates":[{"name":"...","reason":"..."}]}';
 }
 
