@@ -710,7 +710,6 @@ body::after {
         contact: { name: contact.name, title: contact.title, notes: contact.notes },
         framework: framework,
         touchCount: (contact.touchpoints || []).length,
-        isFirstEmail: (contact.emails || []).length === 0,
         priorMessages: (contact.emails || []).slice(-4).map((e) => ({ subject: e.subject, body: e.body }))
       });
       updateCompany(id, (co) => {

@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { type, company, contact, framework, touchCount, priorMessages, variantRequest, isFirstEmail } = req.body || {};
+  const { type, company, contact, framework, touchCount, priorMessages, variantRequest } = req.body || {};
   if (!company || !company.name) return res.status(400).json({ error: 'company required' });
   if (!contact || !contact.name) return res.status(400).json({ error: 'contact required' });
 
@@ -247,13 +247,19 @@ export default async function handler(req, res) {
 
   // Vögele's eye-tracking research found 90%+ of recipients read the P.S.
   // first, before the body — it's the highest-visibility real estate in the
-  // email. Reserved for the very first email to a contact (not every touch)
-  // since a repeated "human" P.S. on every follow-up would itself start
-  // reading as a template. Deliberately steered away from a CTA/urgency P.S.
-  // (the more common marketing-email use of the line) toward a small personal
-  // detail, since the rep's goal here is to read as unmistakably human-written
-  // on a cold open, not to add a second sales push.
-  const psRule = isFirstEmail
+  // email. Reserved for the first touch (n <= 0, same signal sequenceStage()
+  // uses above) rather than every follow-up, since a repeated "human" P.S. on
+  // every message would itself start reading as a template. Keyed off touch
+  // count, NOT how many drafts exist for this contact — touchCount only
+  // advances once a message is actually marked Sent, so regenerating a
+  // different take on the cold open two or three times before picking one to
+  // send still counts as the same first touch and still gets the P.S., not
+  // just whichever draft happened to be generated first. Deliberately steered
+  // away from a CTA/urgency P.S. (the more common marketing-email use of the
+  // line) toward a small personal detail, since the rep's goal here is to
+  // read as unmistakably human-written on a cold open, not to add a second
+  // sales push.
+  const psRule = n <= 0
     ? 'After the signature, add one final line starting with "P.S." — a short, genuine personal-sounding detail tied ' +
       'to THIS company or contact, not a repeat of the email\'s pitch or CTA and not a generic line like "hope your ' +
       'week is going well." Pull it from the rep\'s notes above if there\'s a usable detail there (something said on ' +
