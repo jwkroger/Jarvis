@@ -402,13 +402,21 @@ body::after {
   </div>
 
   <div class="section">
+    <div class="gm-card" style="padding:14px">
+      <input class="gm-input" id="companySearch" type="text" placeholder="🔍 Search companies by name…" autocomplete="off" style="width:100%">
+    </div>
+  </div>
+
+  <div class="section">
     <div class="section-title">Active Pipeline</div>
     <div class="company-grid" id="activeGrid"></div>
+    <div id="activeShowMore"></div>
   </div>
 
   <div class="section">
     <div class="section-title">Passed Opportunities</div>
     <div class="company-grid" id="passedGrid"></div>
+    <div id="passedShowMore"></div>
   </div>
 
 </div><!-- /.page -->
@@ -868,33 +876,77 @@ body::after {
     return el;
   }
 
+  // With enough companies in the pipeline the grids get hard to scan, so by
+  // default each one is capped to the 5 most recent — searching (which
+  // matches across the FULL list, not just the visible 5) or clicking "Show
+  // all" lifts the cap. The cap re-engages once a search is cleared so the
+  // page doesn't stay permanently expanded after finding one older company.
+  const RECENT_CAP = 5;
+  let showAllActive = false;
+  let showAllPassed = false;
+
+  function buildShowMoreRow(hiddenCount, onClick) {
+    const row = document.createElement('div');
+    row.style.textAlign = 'center';
+    row.style.marginTop = '10px';
+    const btn = document.createElement('button');
+    btn.className = 'mini-btn';
+    btn.type = 'button';
+    btn.textContent = 'Show ' + hiddenCount + ' more…';
+    btn.addEventListener('click', onClick);
+    row.appendChild(btn);
+    return row;
+  }
+
   function renderLists() {
     const items = load();
-    const active = items.filter((c) => !c.passed).sort((a, b) => b.createdAt - a.createdAt);
-    const passed = items.filter((c) => c.passed).sort((a, b) => (b.passedAt || 0) - (a.passedAt || 0));
+    const q = ($('companySearch').value || '').trim().toLowerCase();
+    const matches = (c) => !q || (c.name + ' ' + (c.context || '')).toLowerCase().includes(q);
+
+    const active = items.filter((c) => !c.passed && matches(c)).sort((a, b) => b.createdAt - a.createdAt);
+    const passed = items.filter((c) => c.passed && matches(c)).sort((a, b) => (b.passedAt || 0) - (a.passedAt || 0));
 
     const activeGrid = $('activeGrid');
+    const activeMore = $('activeShowMore');
     activeGrid.innerHTML = '';
+    activeMore.innerHTML = '';
     if (active.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = 'No companies in the pipeline yet — add one above.';
+      empty.textContent = q ? 'No companies match "' + q + '".' : 'No companies in the pipeline yet — add one above.';
       activeGrid.appendChild(empty);
     } else {
-      active.forEach((c) => activeGrid.appendChild(buildCard(c)));
+      const expand = !!q || showAllActive;
+      const shown = expand ? active : active.slice(0, RECENT_CAP);
+      shown.forEach((c) => activeGrid.appendChild(buildCard(c)));
+      if (!expand && active.length > RECENT_CAP) {
+        activeMore.appendChild(buildShowMoreRow(active.length - RECENT_CAP, () => { showAllActive = true; renderLists(); }));
+      }
     }
 
     const passedGrid = $('passedGrid');
+    const passedMore = $('passedShowMore');
     passedGrid.innerHTML = '';
+    passedMore.innerHTML = '';
     if (passed.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'empty-state';
-      empty.textContent = 'Nothing passed yet.';
+      empty.textContent = q ? 'No companies match "' + q + '".' : 'Nothing passed yet.';
       passedGrid.appendChild(empty);
     } else {
-      passed.forEach((c) => passedGrid.appendChild(buildCard(c)));
+      const expand = !!q || showAllPassed;
+      const shown = expand ? passed : passed.slice(0, RECENT_CAP);
+      shown.forEach((c) => passedGrid.appendChild(buildCard(c)));
+      if (!expand && passed.length > RECENT_CAP) {
+        passedMore.appendChild(buildShowMoreRow(passed.length - RECENT_CAP, () => { showAllPassed = true; renderLists(); }));
+      }
     }
   }
+  $('companySearch').addEventListener('input', () => {
+    showAllActive = false;
+    showAllPassed = false;
+    renderLists();
+  });
 
   /* ---------- profile modal ---------- */
   let openId = null;
