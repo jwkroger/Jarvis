@@ -702,6 +702,7 @@ body::after {
         contact: { name: contact.name, title: contact.title, notes: contact.notes },
         framework: framework,
         touchCount: (contact.touchpoints || []).length,
+        isFirstEmail: (contact.emails || []).length === 0,
         priorMessages: (contact.emails || []).slice(-4).map((e) => ({ subject: e.subject, body: e.body }))
       });
       updateCompany(id, (co) => {
@@ -1308,7 +1309,7 @@ body::after {
       if (emails.length) {
         const latest = emails[emails.length - 1];
         const emailKey = contact.id + ':email:' + latest.generatedAt;
-        if (!dismissedDrafts.has(emailKey)) {
+        if (!latest.sent && !dismissedDrafts.has(emailKey)) {
           const box = document.createElement('div');
           box.className = 'generated-box';
           const subj = document.createElement('div');
@@ -1358,7 +1359,7 @@ body::after {
       if (linkedinMsgs.length) {
         const latest = linkedinMsgs[linkedinMsgs.length - 1];
         const liKey = contact.id + ':linkedin:' + latest.generatedAt;
-        if (!dismissedDrafts.has(liKey)) {
+        if (!latest.sent && !dismissedDrafts.has(liKey)) {
           const box = document.createElement('div');
           box.className = 'generated-box';
           const body = document.createElement('div');

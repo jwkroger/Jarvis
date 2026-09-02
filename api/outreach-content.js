@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: 'ANTHROPIC_API_KEY not configured' });
 
-  const { type, company, contact, framework, touchCount, priorMessages, variantRequest } = req.body || {};
+  const { type, company, contact, framework, touchCount, priorMessages, variantRequest, isFirstEmail } = req.body || {};
   if (!company || !company.name) return res.status(400).json({ error: 'company required' });
   if (!contact || !contact.name) return res.status(400).json({ error: 'contact required' });
 
@@ -238,6 +238,31 @@ export default async function handler(req, res) {
       'of the same one.\n'
     : '';
 
+  // Emails sign off as the rep personally, not as "Evotix" — a first-name-only
+  // signature reads like a real person, not a company account.
+  const SIGNATURE_RULE =
+    'Close the email with a sign-off on its own line, either "Best," or "Thanks," (vary which one you use, never ' +
+    'anything more elaborate or formal). On the line after that, sign only with the first name "Jackson" — no last ' +
+    'name, no title, and never "Evotix" in the signature itself.\n';
+
+  // Vögele's eye-tracking research found 90%+ of recipients read the P.S.
+  // first, before the body — it's the highest-visibility real estate in the
+  // email. Reserved for the very first email to a contact (not every touch)
+  // since a repeated "human" P.S. on every follow-up would itself start
+  // reading as a template. Deliberately steered away from a CTA/urgency P.S.
+  // (the more common marketing-email use of the line) toward a small personal
+  // detail, since the rep's goal here is to read as unmistakably human-written
+  // on a cold open, not to add a second sales push.
+  const psRule = isFirstEmail
+    ? 'After the signature, add one final line starting with "P.S." — a short, genuine personal-sounding detail tied ' +
+      'to THIS company or contact, not a repeat of the email\'s pitch or CTA and not a generic line like "hope your ' +
+      'week is going well." Pull it from the rep\'s notes above if there\'s a usable detail there (something said on ' +
+      'a call, a shared detail, a specific fact); if the notes don\'t have anything usable, pull one small, specific ' +
+      'detail from the company research or recent news instead (a milestone, a location, something distinctive about ' +
+      'the company). One short sentence, no CTA, no product mention. This line is the single biggest thing that ' +
+      'signals a real person wrote this email, so it needs to feel unmistakably specific and human, never templated.\n'
+    : '';
+
   // The rep asked for this explicitly: generated copy was reading as obviously
   // AI-written. Em dashes as a clause separator and a handful of stock phrases
   // are the biggest tells, so ban them outright rather than just asking for
@@ -297,11 +322,12 @@ export default async function handler(req, res) {
       meddpiccAngle() + ' If it doesn\'t fit naturally for this specific message, skip it rather than forcing it.\n\n' +
       resourceLinkBlock() +
       'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
+      SIGNATURE_RULE + psRule +
       frameworkBlock + notesRepeatRule + priorBlock +
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
       'specific person\'s role and seniority (see the framing note above), not a generic pitch that would read the ' +
       'same regardless of who it\'s addressed to. Professional but conversational — not salesy or generic.';
-    maxTokens = 700;
+    maxTokens = 750;
   } else if (type === 'linkedin') {
     const isConnectionNote = n <= 0;
     prompt =
