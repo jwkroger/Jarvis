@@ -260,13 +260,38 @@ export default async function handler(req, res) {
   // read as unmistakably human-written on a cold open, not to add a second
   // sales push.
   const psRule = n <= 0
-    ? 'After the signature, add one final line starting with "P.S." — a short, genuine personal-sounding detail tied ' +
-      'to THIS company or contact, not a repeat of the email\'s pitch or CTA and not a generic line like "hope your ' +
-      'week is going well." Pull it from the rep\'s notes above if there\'s a usable detail there (something said on ' +
-      'a call, a shared detail, a specific fact); if the notes don\'t have anything usable, pull one small, specific ' +
-      'detail from the company research or recent news instead (a milestone, a location, something distinctive about ' +
-      'the company). One short sentence, no CTA, no product mention. This line is the single biggest thing that ' +
-      'signals a real person wrote this email, so it needs to feel unmistakably specific and human, never templated.\n'
+    ? 'After the signature, add one final line starting with "P.S." Write it the way a person actually dashes off an ' +
+      'afterthought, not a polished closing line — a little offhand, like it occurred to them after they\'d already ' +
+      'hit send in their head. Good patterns: a quick genuine reaction to something specific ("saw you guys just ' +
+      '[x], congrats" / "didn\'t realize you were headquartered in [place], small world"), or a low-key aside that ' +
+      'has nothing to do with the pitch. Bad pattern: flatly restating a research fact like a press release ("I saw ' +
+      'your company recently did X") — react to it like a person would, don\'t report it. Pull the specific detail ' +
+      'from the rep\'s notes above if there\'s something usable there (something said on a call, a shared detail); ' +
+      'if not, pull one small, specific detail from the company research or recent news instead. No CTA, no pitch, ' +
+      'no product mention, one short casual sentence. This line is the single biggest thing that signals a real ' +
+      'human sent this email, so it should read like a genuine afterthought, never engineered.\n'
+    : '';
+
+  // Informal social proof: "I've been talking to a few other [role/industry]
+  // folks lately and here's the change they keep bringing up" makes the pitch
+  // feel like a pattern the rep has actually noticed doing this job, not a
+  // cold claim about this one company. Restricted to the cold open only, same
+  // as the P.S., since repeating "everyone I talk to says X" on every touch
+  // would read as a canned line rather than a genuine observation. Explicitly
+  // bars inventing a specific company name or quote to attribute this to —
+  // that would be a fabricated claim, not a stylistic embellishment, so it
+  // has to stay a general, honest pattern grounded in the real pain point for
+  // this role/industry (already surfaced by the role framing and MEDDPICC
+  // pain angle above), never a manufactured testimonial.
+  const peerInsightRule = n <= 0
+    ? 'Work in one short line (1-2 sentences, before the CTA) framed as something the rep has genuinely been noticing ' +
+      'from talking to other people in this contact\'s world lately, e.g. "Been talking to a few [role/industry] ' +
+      'teams recently and one thing keeps coming up..." or "Most of the folks I talk to in [space] right now are ' +
+      'trying to change...". Tie it to a real, specific pain point this contact\'s role/industry would recognize ' +
+      '(see the role framing and pain angle above) — not a vague industry platitude. This must stay a general, ' +
+      'honest observation: never invent a specific company name, person, or quote to attribute it to, that would be ' +
+      'a fabricated claim, not a stylistic device. It should read like something the rep has actually picked up on ' +
+      'the job, not a stat or case study citation.\n'
     : '';
 
   // The rep asked for this explicitly: generated copy was reading as obviously
@@ -324,8 +349,10 @@ export default async function handler(req, res) {
       'software company, to the contact below.\n\n' + buildResearchBlock(true) + '\n' +
       sequenceStage() + '\n\n' +
       'Subject line rules (2026 B2B benchmarks):\n' + SUBJECT_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
-      'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
+      'Body rules:\n' + BODY_RULES.map((r) => '- ' + r).join('\n') +
+      (n <= 0 ? '\n- This first touch also includes the peer-insight line below, so it\'s fine to land in the upper half of that range (100-125 words) instead of forcing it under 80.' : '') + '\n\n' +
       meddpiccAngle() + ' If it doesn\'t fit naturally for this specific message, skip it rather than forcing it.\n\n' +
+      peerInsightRule +
       resourceLinkBlock() +
       'Sound like a real person, not an AI:\n' + HUMANIZE_RULES.map((r) => '- ' + r).join('\n') + '\n\n' +
       SIGNATURE_RULE + psRule +
@@ -333,7 +360,7 @@ export default async function handler(req, res) {
       'Address it to ' + contact.name.split(' ')[0] + ' by first name. The value prop and CTA MUST reflect this ' +
       'specific person\'s role and seniority (see the framing note above), not a generic pitch that would read the ' +
       'same regardless of who it\'s addressed to. Professional but conversational — not salesy or generic.';
-    maxTokens = 750;
+    maxTokens = 800;
   } else if (type === 'linkedin') {
     const isConnectionNote = n <= 0;
     prompt =
